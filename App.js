@@ -1,23 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { auth } from './firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
+import { Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
+// Auth Screens
 import LoginScreen from './screens/login';
 import SignUpScreen from './screens/signup';
-import { Text, View } from 'react-native';
 
-function HomeScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Welcome to the Hospital Management App</Text>
-    </View>
-  );
-}
+// Patient Screens
+import DashboardScreen from './screens/PatientScreens/dashboard';
+import ClinicsScreen from './screens/PatientScreens/clinicsScreen'; 
+import AppointmentsScreen from './screens/PatientScreens/appointScreen';
+import ProfileScreen from './screens/PatientScreens/ProfileScreen';
 
 const AuthStack = createStackNavigator();
-const AppStack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 function AuthStackScreen() {
   return (
@@ -28,11 +29,38 @@ function AuthStackScreen() {
   );
 }
 
-function AppStackScreen() {
+function AppTabs() {
   return (
-    <AppStack.Navigator>
-      <AppStack.Screen name="Home" component={HomeScreen} />
-    </AppStack.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+          switch (route.name) {
+            case 'Dashboard':
+              iconName = 'home';
+              break;
+            case 'Clinics':
+              iconName = 'medkit';
+              break;
+            case 'Appointments':
+              iconName = 'calendar';
+              break;
+            case 'Profile':
+              iconName = 'person';
+              break;
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#2b8a3e',
+        tabBarInactiveTintColor: 'gray',
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Clinics" component={ClinicsScreen} />
+      <Tab.Screen name="Appointments" component={AppointmentsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
   );
 }
 
@@ -52,7 +80,7 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      {user ? <AppStackScreen /> : <AuthStackScreen />}
+      {user ? <AppTabs /> : <AuthStackScreen />}
     </NavigationContainer>
   );
 }
