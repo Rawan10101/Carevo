@@ -17,6 +17,11 @@ import ClinicsScreen from './screens/PatientScreens/clinicsScreen';
 import AppointmentsScreen from './screens/PatientScreens/appointScreen';
 import ProfileScreen from './screens/PatientScreens/ProfileScreen';
 
+// Booking screens
+import ViewAppointmentsScreen from './screens/BookingAppointment/ViewAppointmentsScreen';
+import RescheduleAppointmentScreen from './screens/BookingAppointment/RescheduleAppointmentScreen';
+import bookingScreen from './screens/BookingAppointment/bookingScreen';
+
 const AuthStack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -58,11 +63,13 @@ function AppTabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Clinics" component={ClinicsScreen} />
-      <Tab.Screen name="Appointments" component={AppointmentsScreen} />
+      <Tab.Screen name="Appointments" component={AppointmentsStackScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
+
+
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);

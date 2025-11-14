@@ -10,6 +10,14 @@ import {
   serverTimestamp,
   doc,
   setDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  updateDoc,  // Add this line
+  deleteDoc,
+  Timestamp
 } from "firebase/firestore";
 
 // Your Firebase config
@@ -34,4 +42,18 @@ const auth = initializeAuth(app, {
 // Initialize Firestore
 const firestore = getFirestore(app);
 
-export { auth, firestore, serverTimestamp, doc, setDoc };
+export {
+  auth, 
+  firestore, 
+  serverTimestamp, 
+  doc, 
+  setDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  updateDoc,  
+  deleteDoc,
+  Timestamp
+  };
