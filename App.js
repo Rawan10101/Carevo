@@ -6,6 +6,7 @@ import { auth } from './firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import ChatScreen from './screens/PatientScreens/chatScreen';
 
 // Auth Screens
 import LoginScreen from './screens/login';
@@ -42,7 +43,7 @@ function ClinicsStackScreen() {
         component={ClinicsScreen}
         options={{ 
           title: 'Clinics',
-          headerShown: true,
+          headerShown: false,
         }}
       />
       <ClinicsStack.Screen 
@@ -62,7 +63,7 @@ function AppTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false, // Hide header for tab screens since nested stacks have their own headers
+        headerShown: false, // keeps other tabs header hidden
         tabBarIcon: ({ color, size }) => {
           let iconName;
           switch (route.name) {
@@ -85,7 +86,32 @@ function AppTabs() {
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+  <Tab.Screen 
+  name="Dashboard" 
+  component={DashboardScreen} 
+  options={({ navigation }) => ({
+    title: 'Carevo',
+    headerShown: true,
+    headerTitleStyle: { 
+      fontSize: 28,
+      fontWeight: 'bold',
+      color: '#28813fff',
+    },
+    headerRight: () => (
+      <View style={{ marginRight: 15 }}>
+        <Ionicons
+          name="paper-plane-outline"   // Instagram-like DM icon
+          size={28}
+          color="#28813fff"
+          onPress={() => navigation.navigate('Chat')}
+        />
+      </View>
+    ),
+  })}
+/>
+
+
+
       <Tab.Screen name="Clinics" component={ClinicsStackScreen} />
       <Tab.Screen name="Appointments" component={AppointmentsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />

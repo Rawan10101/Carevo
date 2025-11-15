@@ -22,9 +22,7 @@ export default function AppointmentsScreen({ navigation }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ======================================================
   // FORMAT DATE
-  // ======================================================
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'N/A';
     
@@ -44,9 +42,7 @@ export default function AppointmentsScreen({ navigation }) {
     }
   };
 
-  // ======================================================
   // REAL-TIME FIRESTORE LISTENER
-  // ======================================================
   useEffect(() => {
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) return;
@@ -94,9 +90,7 @@ export default function AppointmentsScreen({ navigation }) {
     return () => unsubscribe();
   }, []);
 
-  // ======================================================
   // CANCEL APPOINTMENT
-  // ======================================================
   const handleCancelAppointment = (appointment) => {
     Alert.alert(
       'Cancel Appointment',
@@ -145,16 +139,12 @@ export default function AppointmentsScreen({ navigation }) {
     );
   };
 
-  // ======================================================
   // FILTERED LIST
-  // ======================================================
   const filteredAppointments = appointments.filter(apt => 
     apt.displayStatus === filter
   );
 
-  // ======================================================
   // RENDER ITEM
-  // ======================================================
   const renderItem = ({ item }) => (
     <View style={styles.appointmentCard}>
       <Text style={styles.clinicText}>{item.clinicName}</Text>
@@ -188,9 +178,7 @@ export default function AppointmentsScreen({ navigation }) {
     </View>
   );
 
-  // ======================================================
   // UI
-  // ======================================================
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>

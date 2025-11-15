@@ -40,3 +40,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase config (contains API keys)
+firebaseConfig.*
+firebase-config.*
+/src/firebaseConfig.*
+/src/firebase-config.*
+/config/firebaseConfig.*
+.env.firebase

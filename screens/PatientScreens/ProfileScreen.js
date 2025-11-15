@@ -1,6 +1,14 @@
-// File: ./screens/PatientScreens/ProfileScreen.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Button,
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
+  Image
+} from 'react-native';
 import { auth, firestore } from '../../firebaseConfig';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -16,8 +24,6 @@ const ProfileScreen = ({ navigation }) => {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           setUserData(userSnap.data());
-        } else {
-          console.log('No user data found');
         }
       } catch (err) {
         console.log('Error fetching user data:', err);
@@ -36,6 +42,10 @@ const ProfileScreen = ({ navigation }) => {
     } catch (error) {
       console.log('Error logging out:', error.message);
     }
+  };
+
+  const handleAddMedicalHistory = () => {
+    navigation.navigate('AddMedicalHistory');
   };
 
   if (loading) {
@@ -57,67 +67,162 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Profile</Text>
+      {/* Profile Header */}
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {userData['User-Name']?.charAt(0).toUpperCase()}
+          </Text>
+        </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>User Name:</Text>
-        <Text style={styles.value}>{userData['User-Name']}</Text>
+        <Text style={styles.name}>{userData['User-Name']}</Text>
+        <Text style={styles.email}>{userData.email}</Text>
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Email:</Text>
-        <Text style={styles.value}>{userData.email}</Text>
-      </View>
+      {/* Info Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Personal Information</Text>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Phone Number:</Text>
-        <Text style={styles.value}>{userData.PhoneNumber}</Text>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Age:</Text>
-        <Text style={styles.value}>{userData.Age}</Text>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Gender:</Text>
-        <Text style={styles.value}>{userData.Gender}</Text>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Account Created:</Text>
-        <Text style={styles.value}>
-          {userData.createdAt?.toDate
+        {infoField("Phone Number", userData.PhoneNumber)}
+        {infoField("Age", userData.Age)}
+        {infoField("Gender", userData.Gender)}
+        {infoField(
+          "Account Created",
+          userData.createdAt?.toDate
             ? userData.createdAt.toDate().toLocaleString()
-            : ''}
-        </Text>
+            : ""
+        )}
       </View>
 
-      <View style={{ marginTop: 20 }}>
-        <Button title="Logout" onPress={handleLogout} color="#d9534f" />
-      </View>
+      {/* Add Medical History */}
+      <TouchableOpacity style={styles.addButton} onPress={handleAddMedicalHistory}>
+        <Text style={styles.addButtonText}>Add Medical History</Text>
+      </TouchableOpacity>
+
+      {/* Logout */}
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
+
+// Helper to render fields cleaner
+const infoField = (label, value) => (
+  <View style={styles.field}>
+    <Text style={styles.label}>{label}</Text>
+    <Text style={styles.value}>{value}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: '#f2f4f8',
-    alignItems: 'flex-start',
+    backgroundColor: '#f6f8fa',
+    alignItems: 'center',
   },
+
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    alignSelf: 'center',
-    marginTop: 20,
+
+  header: {
+    alignItems: 'center',
+    marginBottom: 25,
+    marginTop: 15,
   },
-  field: { marginBottom: 15 },
-  label: { fontSize: 16, fontWeight: '600', color: '#333' },
-  value: { fontSize: 16, color: '#555', marginTop: 2 },
+
+  avatar: {
+    backgroundColor: '#2b8a3e',
+    width: 95,
+    height: 95,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  avatarText: {
+    color: 'white',
+    fontSize: 40,
+    fontWeight: 'bold',
+  },
+
+  name: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#222',
+  },
+
+  email: {
+    fontSize: 15,
+    color: '#555',
+    marginTop: 3,
+  },
+
+  card: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 25,
+    elevation: 3,
+  },
+
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 15,
+    color: '#2b8a3e',
+  },
+
+  field: {
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 8,
+  },
+
+  label: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+
+  value: {
+    fontSize: 15,
+    color: '#666',
+    marginTop: 3,
+  },
+
+  addButton: {
+    backgroundColor: '#2b8a3e',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  logoutButton: {
+    backgroundColor: '#d9534f',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
 export default ProfileScreen;
