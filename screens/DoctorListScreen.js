@@ -7,7 +7,16 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore'; 
+import { firestore } from '../firebaseConfig';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  query, 
+  where, 
+  getDocs,
+  documentId 
+} from 'firebase/firestore';
 
 const DoctorListScreen = ({ route, navigation }) => {
   const { clinicId, clinicName } = route.params || {}; 
@@ -29,7 +38,6 @@ const DoctorListScreen = ({ route, navigation }) => {
     }
   }, [clinicName, navigation]);
 
-
   useEffect(() => {
     if (!clinicId) {
       setIsLoading(false);
@@ -40,11 +48,11 @@ const DoctorListScreen = ({ route, navigation }) => {
 
     const fetchDoctorsByClinic = async () => {
       try {
-        // fetch the Clinic Document to get the doctor IDs
-        const clinicRef = firestore().collection('Clinics').doc(clinicId);
-        const clinicSnapshot = await clinicRef.get();
+        // Fetch the Clinic Document to get the doctor IDs
+        const clinicRef = doc(firestore, 'Clinics', clinicId);
+        const clinicSnapshot = await getDoc(clinicRef);
 
-        if (!clinicSnapshot.exists) {
+        if (!clinicSnapshot.exists()) {
           console.warn(`Clinic with ID ${clinicId} not found.`);
           setDoctors([]);
           setIsLoading(false);
@@ -66,12 +74,12 @@ const DoctorListScreen = ({ route, navigation }) => {
             const batch = doctorIds.slice(i, i + maxBatchSize);
             
             // Using the IDs to fetch the full Doctor Documents
-            const doctorsQuery = firestore()
-                .collection('Doctors') 
-                .where(firestore.FieldPath.documentId(), 'in', batch) 
-                .orderBy('name', 'asc');
+            const doctorsQuery = query(
+              collection(firestore, 'Doctors'),
+              where(documentId(), 'in', batch)
+            );
             
-            batches.push(doctorsQuery.get());
+            batches.push(getDocs(doctorsQuery));
         }
 
         const snapshots = await Promise.all(batches);
@@ -86,7 +94,12 @@ const DoctorListScreen = ({ route, navigation }) => {
             });
         });
         
-        doctorsList.sort((a, b) => a.name.localeCompare(b.name));
+        // Sort by name after fetching all doctors
+        doctorsList.sort((a, b) => {
+          const nameA = a.name || '';
+          const nameB = b.name || '';
+          return nameA.localeCompare(nameB);
+        });
 
         setDoctors(doctorsList);
         setIsLoading(false);
@@ -101,7 +114,6 @@ const DoctorListScreen = ({ route, navigation }) => {
     
   }, [clinicId]);
   
-  
   // Custom view for when the list is loading
   const LoadingView = () => (
     <View style={styles.loadingContainer}>
@@ -110,7 +122,7 @@ const DoctorListScreen = ({ route, navigation }) => {
     </View>
   );
 
-const renderDoctorItem = ({ item }) => {
+  const renderDoctorItem = ({ item }) => {
     const isExpanded = item.id === expandedDoctorId;
     
     const availableSlots = item.Slots 
@@ -118,7 +130,6 @@ const renderDoctorItem = ({ item }) => {
             return slot.isBooked === false; 
           })
         : [];
-    // -----------------------------------------------------------------
 
     return (
       <TouchableOpacity 
@@ -154,13 +165,11 @@ const renderDoctorItem = ({ item }) => {
             ) : (
               <Text style={styles.noSlotsText}>No slots available.</Text>
             )}
-            
           </View>
         )}
       </TouchableOpacity>
     );
   };
-
 
   if (isLoading) {
     return <LoadingView />;
@@ -183,8 +192,6 @@ const renderDoctorItem = ({ item }) => {
     </View>
   );
 };
-
-// styles definition
 
 const styles = StyleSheet.create({
   // CORE SCREEN STYLES

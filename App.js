@@ -16,10 +16,14 @@ import DashboardScreen from './screens/PatientScreens/dashboard';
 import ClinicsScreen from './screens/PatientScreens/clinicsScreen'; 
 import AppointmentsScreen from './screens/PatientScreens/appointScreen';
 import ProfileScreen from './screens/PatientScreens/ProfileScreen';
+import DoctorListScreen  from './screens/DoctorListScreen';
+
 
 const AuthStack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+const ClinicsStack = createStackNavigator();
 
+// Auth Stack Navigator
 function AuthStackScreen() {
   return (
     <AuthStack.Navigator>
@@ -29,11 +33,36 @@ function AuthStackScreen() {
   );
 }
 
+// Nested Clinics Stack Navigator
+function ClinicsStackScreen() {
+  return (
+    <ClinicsStack.Navigator>
+      <ClinicsStack.Screen 
+        name="ClinicsList" 
+        component={ClinicsScreen}
+        options={{ 
+          title: 'Clinics',
+          headerShown: true,
+        }}
+      />
+      <ClinicsStack.Screen 
+        name="DoctorList" 
+        component={DoctorListScreen}
+        options={{ 
+          headerShown: true,
+          // The title will be set dynamically by DoctorListScreen using navigation.setOptions
+        }}
+      />
+    </ClinicsStack.Navigator>
+  );
+}
+
+// Bottom Tab Navigator
 function AppTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
+        headerShown: false, // Hide header for tab screens since nested stacks have their own headers
         tabBarIcon: ({ color, size }) => {
           let iconName;
           switch (route.name) {
@@ -57,13 +86,14 @@ function AppTabs() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Clinics" component={ClinicsScreen} />
+      <Tab.Screen name="Clinics" component={ClinicsStackScreen} />
       <Tab.Screen name="Appointments" component={AppointmentsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
 
+// Main App Component
 export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
