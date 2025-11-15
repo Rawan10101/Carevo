@@ -12,10 +12,9 @@ import {
 import { firestore, auth } from '../../firebaseConfig';
 import { 
   doc, 
-  getDoc, 
   updateDoc,
   arrayRemove,
-  Timestamp 
+  onSnapshot
 } from 'firebase/firestore';
 
 export default function AppointmentsScreen({ navigation }) {
@@ -23,11 +22,9 @@ export default function AppointmentsScreen({ navigation }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
-
-  // Format timestamp to readable date/time
+  // ======================================================
+  // FORMAT DATE
+  // ======================================================
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'N/A';
     
@@ -47,56 +44,42 @@ export default function AppointmentsScreen({ navigation }) {
     }
   };
 
-  // Check if appointment is in the past
-  const isPastAppointment = (slotTime) => {
-    if (!slotTime) return false;
-    try {
-      const appointmentDate = slotTime.toDate();
-      const now = new Date();
-      return appointmentDate < now;
-    } catch (error) {
-      return false;
-    }
-  };
+  // ======================================================
+  // REAL-TIME FIRESTORE LISTENER
+  // ======================================================
+  useEffect(() => {
+    const currentUserId = auth.currentUser?.uid;
+    if (!currentUserId) return;
 
-  // Fetch appointments from user's document
-  const fetchAppointments = async () => {
-    try {
-      const currentUserId = auth.currentUser?.uid;
-      if (!currentUserId) {
-        Alert.alert('Error', 'You must be logged in');
+    const userRef = doc(firestore, 'users', currentUserId);
+
+    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setAppointments([]);
         setLoading(false);
         return;
       }
 
-      // Get user document
-      const userRef = doc(firestore, 'users', currentUserId);
-      const userSnapshot = await getDoc(userRef);
-
-      if (!userSnapshot.exists()) {
-        setLoading(false);
-        return;
-      }
-
-      const userData = userSnapshot.data();
+      const userData = snapshot.data();
       const userAppointments = userData.Appointments || [];
 
-      // Categorize appointments
-      const categorizedAppointments = userAppointments.map(apt => {
+      const categorizedAppointments = userAppointments.map((apt) => {
         let status = apt.status || 'confirmed';
-        
-        // Check if appointment is in the past
-        if (status === 'confirmed' && isPastAppointment(apt.slotTime)) {
-          status = 'past';
-        }
-        
+
+        // Check if in past
+        try {
+          if (status === 'confirmed' && apt.slotTime?.toDate() < new Date()) {
+            status = 'past';
+          }
+        } catch {}
+
         return {
           ...apt,
           displayStatus: status === 'confirmed' ? 'upcoming' : status
         };
       });
 
-      // Sort by slot time (most recent first)
+      // Sort by newest first
       categorizedAppointments.sort((a, b) => {
         if (a.slotTime && b.slotTime) {
           return b.slotTime.seconds - a.slotTime.seconds;
@@ -105,18 +88,19 @@ export default function AppointmentsScreen({ navigation }) {
       });
 
       setAppointments(categorizedAppointments);
-    } catch (error) {
-      console.error('Error fetching appointments:', error);
-      Alert.alert('Error', 'Failed to load appointments');
-    }
-    setLoading(false);
-  };
+      setLoading(false);
+    });
 
-  // Cancel appointment
+    return () => unsubscribe();
+  }, []);
+
+  // ======================================================
+  // CANCEL APPOINTMENT
+  // ======================================================
   const handleCancelAppointment = (appointment) => {
     Alert.alert(
       'Cancel Appointment',
-      `Are you sure you want to cancel your appointment with ${appointment.doctorName}?`,
+      `Cancel appointment with ${appointment.doctorName}?`,
       [
         { text: 'No', style: 'cancel' },
         {
@@ -124,23 +108,19 @@ export default function AppointmentsScreen({ navigation }) {
           onPress: async () => {
             try {
               const currentUserId = auth.currentUser.uid;
-              
-              // 1. Update Doctor's Slots to free up the slot
+
+              // Free doctor slot
               const doctorRef = doc(firestore, 'Doctors', appointment.doctorId);
-              const doctorSnapshot = await getDoc(doctorRef);
+              const doctorSnap = await getDoc(doctorRef);
 
-              if (doctorSnapshot.exists()) {
-                const doctorData = doctorSnapshot.data();
-                const slots = doctorData.Slots || [];
-
-                const updatedSlots = slots.map(slot => {
-                  if (slot.time && appointment.slotTime &&
-                      slot.time.seconds === appointment.slotTime.seconds &&
-                      slot.time.nanoseconds === appointment.slotTime.nanoseconds) {
-                    return {
-                      time: slot.time,
-                      isBooked: false,
-                    };
+              if (doctorSnap.exists()) {
+                const docData = doctorSnap.data();
+                const updatedSlots = docData.Slots.map(slot => {
+                  if (
+                    slot.time?.seconds === appointment.slotTime.seconds &&
+                    slot.time?.nanoseconds === appointment.slotTime.nanoseconds
+                  ) {
+                    return { time: slot.time, isBooked: false, patientUserName: "" };
                   }
                   return slot;
                 });
@@ -148,18 +128,15 @@ export default function AppointmentsScreen({ navigation }) {
                 await updateDoc(doctorRef, { Slots: updatedSlots });
               }
 
-              // 2. Remove appointment from user's Appointments array
+              // Remove from user Appointments
               const userRef = doc(firestore, 'users', currentUserId);
               await updateDoc(userRef, {
                 Appointments: arrayRemove(appointment)
               });
 
-              Alert.alert('Success', 'Appointment cancelled successfully');
-              
-              // Refresh appointments
-              fetchAppointments();
+              Alert.alert('Success', 'Appointment cancelled');
             } catch (error) {
-              console.error('Error cancelling appointment:', error);
+              console.error(error);
               Alert.alert('Error', 'Failed to cancel appointment');
             }
           }
@@ -168,26 +145,25 @@ export default function AppointmentsScreen({ navigation }) {
     );
   };
 
-  // Filter appointments based on selected filter
-  const filteredAppointments = appointments.filter(apt => {
-    if (filter === 'upcoming') {
-      return apt.displayStatus === 'upcoming';
-    } else if (filter === 'past') {
-      return apt.displayStatus === 'past';
-    } else if (filter === 'cancelled') {
-      return apt.displayStatus === 'cancelled';
-    }
-    return true;
-  });
+  // ======================================================
+  // FILTERED LIST
+  // ======================================================
+  const filteredAppointments = appointments.filter(apt => 
+    apt.displayStatus === filter
+  );
 
+  // ======================================================
+  // RENDER ITEM
+  // ======================================================
   const renderItem = ({ item }) => (
     <View style={styles.appointmentCard}>
-      <Text style={styles.clinicText}>{item.clinicName || 'Clinic'}</Text>
-      <Text style={styles.doctorText}>Doctor: {item.doctorName || 'N/A'}</Text>
+      <Text style={styles.clinicText}>{item.clinicName}</Text>
+      <Text style={styles.doctorText}>Doctor: {item.doctorName}</Text>
       <Text style={styles.dateText}>Date: {formatTimestamp(item.slotTime)}</Text>
+
       <Text style={[
         styles.statusText,
-        { color: item.displayStatus === 'upcoming' ? '#2b8a3e' : item.displayStatus === 'past' ? '#666' : '#d9534f' }
+        { color: item.displayStatus === "upcoming" ? "#2b8a3e" : item.displayStatus === "past" ? "#555" : "#d9534f" }
       ]}>
         Status: {item.displayStatus.toUpperCase()}
       </Text>
@@ -196,15 +172,25 @@ export default function AppointmentsScreen({ navigation }) {
         <View style={styles.buttonsRow}>
           <TouchableOpacity 
             style={[styles.button, { backgroundColor: '#d9534f' }]}
-            onPress={() => handleCancelAppointment(item)}
+            //onPress={() => handleCancelAppointment(item)}
           >
             <Text style={styles.buttonText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: '#2b8a3e' }]}
+            //onPress={() => navigation.navigate('Clinics', { rescheduleData: item })}
+          >
+            <Text style={styles.buttonText}>Reschedule</Text>
           </TouchableOpacity>
         </View>
       )}
     </View>
   );
 
+  // ======================================================
+  // UI
+  // ======================================================
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -218,7 +204,7 @@ export default function AppointmentsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Tabs Container with spacing from top */}
+
       <View style={styles.tabsWrapper}>
         <View style={styles.filterRow}>
           {['upcoming', 'past', 'cancelled'].map(f => (
@@ -227,7 +213,10 @@ export default function AppointmentsScreen({ navigation }) {
               style={[styles.filterButton, filter === f && styles.activeFilter]}
               onPress={() => setFilter(f)}
             >
-              <Text style={{ color: filter === f ? 'white' : 'black', fontWeight: 'bold' }}>
+              <Text style={{ 
+                color: filter === f ? 'white' : 'black', 
+                fontWeight: 'bold' 
+              }}>
                 {f.toUpperCase()}
               </Text>
             </TouchableOpacity>
@@ -235,28 +224,24 @@ export default function AppointmentsScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Appointments List */}
-      <View style={styles.listContainer}>
-        <FlatList
-          data={filteredAppointments}
-          keyExtractor={(item) => item.appointmentId}
-          renderItem={renderItem}
-          ListEmptyComponent={
-            <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>
-              No {filter} appointments
-            </Text>
-          }
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      </View>
+      <FlatList
+        data={filteredAppointments}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>
+            No {filter} appointments
+          </Text>
+        }
+      />
 
-      {/* Book Appointment */}
       <TouchableOpacity
         style={styles.bookButton}
         onPress={() => navigation.navigate('Clinics')}
       >
         <Text style={styles.bookButtonText}>BOOK APPOINTMENT</Text>
       </TouchableOpacity>
+
     </SafeAreaView>
   );
 }
@@ -279,7 +264,7 @@ const styles = StyleSheet.create({
   },
   tabsWrapper: {
     marginTop: 40,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   filterRow: {
     flexDirection: 'row',
@@ -295,47 +280,37 @@ const styles = StyleSheet.create({
   activeFilter: {
     backgroundColor: '#2b8a3e',
   },
-  listContainer: {
-    flex: 1,
-    marginBottom: 10,
-  },
   appointmentCard: {
     backgroundColor: '#ffffff',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    elevation: 2,
   },
   clinicText: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 5,
     color: '#2b8a3e',
+    marginBottom: 5,
   },
   doctorText: {
     fontSize: 14,
     marginBottom: 5,
-    color: '#333',
   },
   dateText: {
     fontSize: 14,
-    marginBottom: 5,
     color: '#666',
+    marginBottom: 5,
   },
   statusText: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 5,
   },
   buttonsRow: {
     flexDirection: 'row',
     marginTop: 10,
   },
   button: {
-    backgroundColor: '#2b8a3e',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 5,
