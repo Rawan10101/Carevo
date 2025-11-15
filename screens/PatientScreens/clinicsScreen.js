@@ -10,13 +10,22 @@ import {
 import { firestore } from '../../firebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
 
-const ClinicsScreen = ({ navigation }) => {
+const ClinicsScreen = ({ navigation, route }) => {
   const [clinics, setClinics] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { rescheduleData } = route.params || {};
 
   useEffect(() => {
     setIsLoading(true);
     fetchClinics();
+    // Add reschedule alert
+    if (rescheduleData) {
+    Alert.alert(
+      'Reschedule Mode',
+      `You are rescheduling your appointment with ${rescheduleData.doctorName}. Select a clinic to view available slots.`,
+      [{ text: 'OK' }]
+    );
+  }
   }, []);
 
   // Fetch clinics from Firestore
@@ -72,6 +81,7 @@ const ClinicsScreen = ({ navigation }) => {
           clinicId: item.id,
           clinicName: item.Name,
           doctorIds: item.Doctors,
+          rescheduleData: rescheduleData,
         })
       }
       activeOpacity={0.7}
@@ -82,6 +92,9 @@ const ClinicsScreen = ({ navigation }) => {
           {item.Doctors.length} {item.Doctors.length === 1 ? 'Doctor' : 'Doctors'}
         </Text>
       )}
+      {rescheduleData && (
+        <Text style={styles.rescheduleTag}>📅 Rescheduling</Text>
+      )}
     </TouchableOpacity>
   );
 
@@ -91,6 +104,13 @@ const ClinicsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+        {rescheduleData && ( // Add reschedule bar
+          <View style={styles.rescheduleBar}>
+            <Text style={styles.rescheduleBarText}>
+               Rescheduling: {rescheduleData.doctorName}
+            </Text>
+          </View>
+        )}
       <Text style={styles.headerTitle}>Select a Clinic</Text>
       {clinics.length === 0 ? (
         <Text style={styles.noDataText}>No clinics available at the moment.</Text>
@@ -161,6 +181,26 @@ const styles = StyleSheet.create({
   listContentPadding: {
     paddingBottom: 20,
   },
+  rescheduleBar: {
+  backgroundColor: '#ff9800',
+  padding: 12,
+  marginTop: 10,
+  borderRadius: 8,
+  marginBottom: 5,
+},
+rescheduleBarText: {
+  color: 'white',
+  fontWeight: 'bold',
+  textAlign: 'center',
+  fontSize: 14,
+},
+rescheduleTag: {
+  fontSize: 12,
+  color: '#ff9800',
+  fontWeight: 'bold',
+  marginTop: 5,
+},
+
 });
 
 export default ClinicsScreen;

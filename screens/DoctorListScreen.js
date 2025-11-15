@@ -20,11 +20,12 @@ import {
   where, 
   documentId,
   Timestamp,
-  arrayUnion
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 
 const DoctorListScreen = ({ route, navigation }) => {
-  const { clinicId, clinicName, doctorIds } = route.params || {}; 
+  const { clinicId, clinicName, doctorIds, rescheduleData } = route.params || {}; 
   const [doctors, setDoctors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [bookingInProgress, setBookingInProgress] = useState(false);
@@ -143,10 +144,83 @@ const DoctorListScreen = ({ route, navigation }) => {
         fetchDoctorsByIds();
         return;
       }
-
-      // Create unique appointment ID
+      // CREATE APPOINTMENT ID
       const appointmentId = `${doctorId}_${slot.time.seconds}`;
       console.log('Appointment ID:', appointmentId);
+      // ===== RESCHEDULE MODE =====
+if (rescheduleData) {
+  console.log('Processing reschedule...');
+  
+  // 1. Free the OLD doctor slot (Logic remains correct)
+  // ... (Your code for freeing the old slot in the Doctor's document)
+
+  // 2. Book the NEW slot (Logic remains correct)
+  // ... (Your code for booking the new slot in the Doctor's document)
+
+  // 3. Update user's Appointments array: Remove Old, Add New (CRITICAL FIX)
+  const userRef = doc(firestore, 'users', currentUserId);
+  const userSnap = await getDoc(userRef);
+  
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    const appointments = userData.Appointments || [];
+
+    // A. Find the OLD appointment object to remove
+    const oldAppointment = appointments.find(apt => {
+        // Priority match by unique appointmentId
+        const matchById = rescheduleData.appointmentId && apt.appointmentId === rescheduleData.appointmentId;
+        // Fallback match using doctor/time for reliability
+        const matchByDetails = apt.doctorId === rescheduleData.doctorId &&
+                               apt.slotTime?.seconds === rescheduleData.slotTime.seconds &&
+                               apt.slotTime?.nanoseconds === rescheduleData.slotTime.nanoseconds;
+
+        return matchById || matchByDetails;
+    });
+    
+    // Define the NEW appointment object
+    const newAppointmentData = {
+        appointmentId: appointmentId,
+        doctorId: doctorId,
+        doctorName: doctorName,
+        clinicId: clinicId,
+        clinicName: clinicName,
+        slotTime: slot.time,
+        bookedAt: Timestamp.now(),
+        status: 'confirmed'
+    };
+
+    // B. Execute the REMOVAL (Cancel Old)
+    if (oldAppointment) {
+        // Use arrayRemove to reliably remove the exact object that was found
+        await updateDoc(userRef, {
+            Appointments: arrayRemove(oldAppointment)
+        });
+        console.log('Old appointment removed successfully via arrayRemove');
+    }
+    
+    // C. Execute the ADDITION (Book New)
+    await updateDoc(userRef, {
+        Appointments: arrayUnion(newAppointmentData)
+    });
+    console.log('New appointment added successfully via arrayUnion');
+    
+  }
+
+  Alert.alert(
+    'Success!',
+    `Your appointment has been **rescheduled** to ${formatTimestamp(slot.time).date} at ${formatTimestamp(slot.time).time}. The old appointment has been cancelled.`,
+    [{ 
+      text: 'OK',
+      onPress: () => navigation.navigate('Appointments')
+    }]
+  );
+
+} else {
+  // YOUR EXISTING NORMAL BOOKING CODE GOES HERE
+  // (Keep everything you currently have for normal booking)
+
+
+      console.log('Using appointmentId:', appointmentId);
 
       // Update the slot to mark it as booked
       const updatedSlots = slots.map(s => {
@@ -237,6 +311,7 @@ const DoctorListScreen = ({ route, navigation }) => {
       );
 
       setBookingInProgress(false);
+    }
 
     } catch (error) {
       console.error('=== BOOKING ERROR ===');
@@ -246,7 +321,8 @@ const DoctorListScreen = ({ route, navigation }) => {
       Alert.alert('Error', 'Failed to book appointment. Please try again.\n\nError: ' + error.message);
       setBookingInProgress(false);
     }
-  };
+
+};
 
   // Function to change the expanded state
   const toggleExpansion = (doctorId) => {
@@ -334,7 +410,8 @@ const DoctorListScreen = ({ route, navigation }) => {
       console.error('Error fetching doctors:', error);
       setIsLoading(false);
     }
-  };
+  
+};
   
   // Custom view for when the list is loading
   const LoadingView = () => (
@@ -472,6 +549,7 @@ const DoctorListScreen = ({ route, navigation }) => {
       )}
     </View>
   );
+  
 };
 
 const styles = StyleSheet.create({

@@ -13,7 +13,8 @@ import { firestore, auth } from '../../firebaseConfig';
 import { 
   doc, 
   updateDoc,
-  arrayRemove,
+  getDoc, // when canelling or rescheduling an appointment
+  //arrayRemove,
   onSnapshot
 } from 'firebase/firestore';
 
@@ -97,53 +98,73 @@ export default function AppointmentsScreen({ navigation }) {
   // ======================================================
   // CANCEL APPOINTMENT
   // ======================================================
-  const handleCancelAppointment = (appointment) => {
-    Alert.alert(
-      'Cancel Appointment',
-      `Cancel appointment with ${appointment.doctorName}?`,
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            try {
-              const currentUserId = auth.currentUser.uid;
+const handleCancelAppointment = (appointment) => {
+  Alert.alert(
+    'Cancel Appointment',
+    `Cancel appointment with ${appointment.doctorName}?`,
+    [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes',
+        onPress: async () => {
+          try {
+            const currentUserId = auth.currentUser.uid;
+            
+            // Free doctor slot
+            const doctorRef = doc(firestore, 'Doctors', appointment.doctorId);
+            const doctorSnap = await getDoc(doctorRef);
+            
+            if (doctorSnap.exists()) {
+              const updatedSlots = doctorSnap.data().Slots.map(slot => 
+                (slot.time?.seconds === appointment.slotTime.seconds &&
+                 slot.time?.nanoseconds === appointment.slotTime.nanoseconds)
+                  ? { time: slot.time, isBooked: false, patientId: "", patientEmail: "", appointmentId: "" }
+                  : slot
+              );
+              await updateDoc(doctorRef, { Slots: updatedSlots });
+            }
 
-              // Free doctor slot
-              const doctorRef = doc(firestore, 'Doctors', appointment.doctorId);
-              const doctorSnap = await getDoc(doctorRef);
-
-              if (doctorSnap.exists()) {
-                const docData = doctorSnap.data();
-                const updatedSlots = docData.Slots.map(slot => {
-                  if (
-                    slot.time?.seconds === appointment.slotTime.seconds &&
-                    slot.time?.nanoseconds === appointment.slotTime.nanoseconds
-                  ) {
-                    return { time: slot.time, isBooked: false, patientUserName: "" };
-                  }
-                  return slot;
-                });
-
-                await updateDoc(doctorRef, { Slots: updatedSlots });
-              }
-
-              // Remove from user Appointments
-              const userRef = doc(firestore, 'users', currentUserId);
-              await updateDoc(userRef, {
-                Appointments: arrayRemove(appointment)
+            // Cancel in user appointments using appointmentId
+            const userRef = doc(firestore, 'users', currentUserId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              const appointments = userSnap.data().Appointments || [];
+              
+              // Use appointmentId if available, otherwise fall back to timestamp matching
+              const updatedAppointments = appointments.map(apt => {
+                // Try matching by appointmentId first
+                if (apt.appointmentId && appointment.appointmentId && 
+                    apt.appointmentId === appointment.appointmentId) {
+                  return { ...apt, status: 'cancelled' };
+                }
+                
+                // Fall back to timestamp matching
+                if (apt.doctorId === appointment.doctorId &&
+                    apt.slotTime?.seconds === appointment.slotTime?.seconds &&
+                    apt.slotTime?.nanoseconds === appointment.slotTime?.nanoseconds) {
+                  return { ...apt, status: 'cancelled' };
+                }
+                
+                return apt;
               });
 
+              await updateDoc(userRef, { Appointments: updatedAppointments });
               Alert.alert('Success', 'Appointment cancelled');
-            } catch (error) {
-              console.error(error);
-              Alert.alert('Error', 'Failed to cancel appointment');
+            } else {
+              Alert.alert('Error', 'User not found');
             }
+            
+          } catch (error) {
+            console.error('Cancel error:', error);
+            Alert.alert('Error', error.message);
           }
         }
-      ]
-    );
-  };
+      }
+    ]
+  );
+};
+
+
 
   // ======================================================
   // FILTERED LIST
@@ -151,6 +172,27 @@ export default function AppointmentsScreen({ navigation }) {
   const filteredAppointments = appointments.filter(apt => 
     apt.displayStatus === filter
   );
+
+// ======================================================
+// RESCHEDULE APPOINTMENT
+// ======================================================
+const handleReschedule = (appointment) => {
+  Alert.alert(
+    'Reschedule Appointment',
+    `Reschedule appointment with ${appointment.doctorName}?`,
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Continue',
+        onPress: () => {
+          navigation.navigate('Clinics', { 
+            rescheduleData: appointment 
+          });
+        }
+      }
+    ]
+  );
+};
 
   // ======================================================
   // RENDER ITEM
@@ -172,14 +214,15 @@ export default function AppointmentsScreen({ navigation }) {
         <View style={styles.buttonsRow}>
           <TouchableOpacity 
             style={[styles.button, { backgroundColor: '#d9534f' }]}
-            //onPress={() => handleCancelAppointment(item)}
+            onPress={() => handleCancelAppointment(item)} // <-- UNCOMMENTED THIS
           >
             <Text style={styles.buttonText}>Cancel</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={[styles.button, { backgroundColor: '#2b8a3e' }]}
-            //onPress={() => navigation.navigate('Clinics', { rescheduleData: item })}
+            onPress={() => handleReschedule(item)}
+
           >
             <Text style={styles.buttonText}>Reschedule</Text>
           </TouchableOpacity>
