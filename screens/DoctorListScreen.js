@@ -6,17 +6,19 @@ import {
   ActivityIndicator, 
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
-import { firestore } from '../firebaseConfig';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  query, 
-  where, 
-  getDocs,
-  documentId 
-} from 'firebase/firestore';
+// Commented out for now - will be used when integrating with database
+// import { firestore } from '../firebaseConfig';
+// import { 
+//   collection, 
+//   doc, 
+//   getDoc, 
+//   query, 
+//   where, 
+//   getDocs,
+//   documentId 
+// } from 'firebase/firestore';
 
 const DoctorListScreen = ({ route, navigation }) => {
   const { clinicId, clinicName } = route.params || {}; 
@@ -25,6 +27,218 @@ const DoctorListScreen = ({ route, navigation }) => {
   
   // State to track which doctor's card is currently expanded
   const [expandedDoctorId, setExpandedDoctorId] = useState(null); 
+
+  // Mock data for testing - will be removed when integrating with database
+  const mockDoctorsData = {
+    '1': [ // Cardiology Clinic
+      {
+        id: 'doc1',
+        name: 'Dr. Ahmed Hassan',
+        specialty: 'Cardiologist',
+        Slots: [
+          { time: '2025-11-16 09:00', isBooked: false },
+          { time: '2025-11-16 10:30', isBooked: false },
+          { time: '2025-11-17 14:00', isBooked: false },
+          { time: '2025-11-18 11:00', isBooked: true },
+        ],
+      },
+      {
+        id: 'doc2',
+        name: 'Dr. Sara Mohamed',
+        specialty: 'Cardiac Surgeon',
+        Slots: [
+          { time: '2025-11-16 08:00', isBooked: false },
+          { time: '2025-11-17 09:30', isBooked: false },
+          { time: '2025-11-18 13:00', isBooked: false },
+        ],
+      },
+      {
+        id: 'doc3',
+        name: 'Dr. Omar Ibrahim',
+        specialty: 'Interventional Cardiologist',
+        Slots: [
+          { time: '2025-11-19 10:00', isBooked: false },
+          { time: '2025-11-20 15:00', isBooked: true },
+        ],
+      },
+    ],
+    '2': [ // Dental Clinic
+      {
+        id: 'doc4',
+        name: 'Dr. Mona Ali',
+        specialty: 'General Dentist',
+        Slots: [
+          { time: '2025-11-16 09:00', isBooked: false },
+          { time: '2025-11-16 11:00', isBooked: false },
+          { time: '2025-11-17 10:00', isBooked: false },
+          { time: '2025-11-18 14:00', isBooked: true },
+        ],
+      },
+      {
+        id: 'doc5',
+        name: 'Dr. Khaled Mahmoud',
+        specialty: 'Orthodontist',
+        Slots: [
+          { time: '2025-11-17 13:00', isBooked: false },
+          { time: '2025-11-18 09:00', isBooked: false },
+        ],
+      },
+    ],
+    '3': [ // Dermatology Clinic
+      {
+        id: 'doc6',
+        name: 'Dr. Heba Youssef',
+        specialty: 'Dermatologist',
+        Slots: [
+          { time: '2025-11-16 10:00', isBooked: false },
+          { time: '2025-11-17 11:30', isBooked: false },
+          { time: '2025-11-18 09:00', isBooked: false },
+        ],
+      },
+      {
+        id: 'doc7',
+        name: 'Dr. Tarek Sami',
+        specialty: 'Cosmetic Dermatologist',
+        Slots: [
+          { time: '2025-11-19 14:00', isBooked: false },
+          { time: '2025-11-20 10:00', isBooked: false },
+        ],
+      },
+      {
+        id: 'doc8',
+        name: 'Dr. Laila Farid',
+        specialty: 'Pediatric Dermatologist',
+        Slots: [],
+      },
+      {
+        id: 'doc9',
+        name: 'Dr. Youssef Kamal',
+        specialty: 'Dermatopathologist',
+        Slots: [
+          { time: '2025-11-21 08:00', isBooked: false },
+        ],
+      },
+    ],
+    '4': [ // Pediatrics Clinic
+      {
+        id: 'doc10',
+        name: 'Dr. Nour El-Din',
+        specialty: 'Pediatrician',
+        Slots: [
+          { time: '2025-11-16 08:30', isBooked: false },
+          { time: '2025-11-16 10:00', isBooked: false },
+          { time: '2025-11-17 09:00', isBooked: false },
+          { time: '2025-11-18 11:30', isBooked: false },
+          { time: '2025-11-19 14:00', isBooked: true },
+        ],
+      },
+    ],
+    '5': [ // Orthopedics Clinic
+      {
+        id: 'doc11',
+        name: 'Dr. Amr Soliman',
+        specialty: 'Orthopedic Surgeon',
+        Slots: [
+          { time: '2025-11-17 10:00', isBooked: false },
+          { time: '2025-11-18 13:00', isBooked: false },
+        ],
+      },
+      {
+        id: 'doc12',
+        name: 'Dr. Rana Hesham',
+        specialty: 'Sports Medicine Specialist',
+        Slots: [
+          { time: '2025-11-19 09:00', isBooked: false },
+          { time: '2025-11-20 11:00', isBooked: false },
+          { time: '2025-11-21 15:00', isBooked: false },
+        ],
+      },
+    ],
+    '6': [ // Neurology Clinic
+      {
+        id: 'doc13',
+        name: 'Dr. Mahmoud Abdel-Aziz',
+        specialty: 'Neurologist',
+        Slots: [
+          { time: '2025-11-16 09:00', isBooked: false },
+          { time: '2025-11-17 10:30', isBooked: false },
+        ],
+      },
+      {
+        id: 'doc14',
+        name: 'Dr. Dina Fathy',
+        specialty: 'Neurosurgeon',
+        Slots: [
+          { time: '2025-11-18 08:00', isBooked: false },
+          { time: '2025-11-19 14:00', isBooked: true },
+        ],
+      },
+      {
+        id: 'doc15',
+        name: 'Dr. Hassan Zaki',
+        specialty: 'Neuropsychologist',
+        Slots: [
+          { time: '2025-11-20 10:00', isBooked: false },
+          { time: '2025-11-21 13:00', isBooked: false },
+        ],
+      },
+    ],
+  };
+
+  // Function to handle appointment booking
+  const handleBookAppointment = (doctorId, doctorName, slot) => {
+    const parts = slot.time.split(' '); 
+    const dateString = parts[0];
+    const timeString = parts[1];
+    const formattedDate = dateString.split('-').slice(1).join('/');
+
+    Alert.alert(
+      'Confirm Appointment',
+      `Do you want to book an appointment with ${doctorName} on ${formattedDate} at ${timeString}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Book',
+          onPress: () => bookAppointment(doctorId, slot),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Function to book the appointment
+  const bookAppointment = (doctorId, slot) => {
+    // Update the doctors state to mark the slot as booked
+    setDoctors(prevDoctors => 
+      prevDoctors.map(doctor => {
+        if (doctor.id === doctorId) {
+          return {
+            ...doctor,
+            Slots: doctor.Slots.map(s => 
+              s.time === slot.time ? { ...s, isBooked: true } : s
+            ),
+          };
+        }
+        return doctor;
+      })
+    );
+
+    // Show success message
+    Alert.alert(
+      'Appointment Booked!',
+      'Your appointment has been successfully booked.',
+      [{ text: 'OK' }]
+    );
+
+    // TODO: When integrating with database, add Firestore update here
+    // Example:
+    // await updateDoc(doc(firestore, 'Doctors', doctorId), {
+    //   Slots: updatedSlots
+    // });
+  };
 
   // Function to change the expanded state
   const toggleExpansion = (doctorId) => {
@@ -46,6 +260,15 @@ const DoctorListScreen = ({ route, navigation }) => {
 
     setIsLoading(true);
 
+    // Using mock data for now
+    setTimeout(() => {
+      const clinicDoctors = mockDoctorsData[clinicId] || [];
+      setDoctors(clinicDoctors);
+      setIsLoading(false);
+    }, 500); // Simulate loading delay
+
+    /* 
+    // TODO: Uncomment this when ready to fetch from Firestore
     const fetchDoctorsByClinic = async () => {
       try {
         // Fetch the Clinic Document to get the doctor IDs
@@ -111,7 +334,7 @@ const DoctorListScreen = ({ route, navigation }) => {
     };
     
     fetchDoctorsByClinic();
-    
+    */
   }, [clinicId]);
   
   // Custom view for when the list is loading
@@ -156,7 +379,12 @@ const DoctorListScreen = ({ route, navigation }) => {
                   const formattedDate = dateString.split('-').slice(1).join('/');
 
                   return (
-                    <TouchableOpacity key={index} style={styles.slotPill}> 
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.slotPill}
+                      onPress={() => handleBookAppointment(item.id, item.name, slot)}
+                      activeOpacity={0.7}
+                    > 
                       <Text style={styles.slotText}>{formattedDate} @ {timeString}</Text>
                     </TouchableOpacity>
                   );
