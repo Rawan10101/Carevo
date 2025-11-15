@@ -7,89 +7,53 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-// import firestore from '@react-native-firebase/firestore';
+import { firestore } from '../../firebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
 
 const ClinicsScreen = ({ navigation }) => {
   const [clinics, setClinics] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data for testing - will be removed when integrating with database
-  const mockClinics = [
-    {
-      id: '1',
-      name: 'Cardiology Clinic',
-      description: 'Specialized in heart and cardiovascular health',
-      Doctors: ['doc1', 'doc2', 'doc3'],
-    },
-    {
-      id: '2',
-      name: 'Dental Clinic',
-      description: 'Complete dental care and cosmetic dentistry',
-      Doctors: ['doc4', 'doc5'],
-    },
-    {
-      id: '3',
-      name: 'Dermatology Clinic',
-      description: 'Skin care and dermatological treatments',
-      Doctors: ['doc6', 'doc7', 'doc8', 'doc9'],
-    },
-    {
-      id: '4',
-      name: 'Pediatrics Clinic',
-      description: 'Healthcare for infants, children, and adolescents',
-      Doctors: ['doc10'],
-    },
-    {
-      id: '5',
-      name: 'Orthopedics Clinic',
-      description: 'Bone, joint, and musculoskeletal care',
-      Doctors: ['doc11', 'doc12'],
-    },
-    {
-      id: '6',
-      name: 'Neurology Clinic',
-      description: 'Brain and nervous system disorders treatment',
-      Doctors: ['doc13', 'doc14', 'doc15'],
-    },
-  ];
-
   useEffect(() => {
     setIsLoading(true);
-
-    // Using mock data for now
-    setTimeout(() => {
-      setClinics(mockClinics);
-      setIsLoading(false);
-    }, 500); // Simulate loading delay
-
-    /* 
-    // TODO: Uncomment this when ready to fetch from Firestore
-    const fetchClinics = async () => {
-      try {
-        const clinicsSnapshot = await firestore()
-          .collection('Clinics')
-          .orderBy('name', 'asc')
-          .get();
-
-        const clinicsList = [];
-        clinicsSnapshot.forEach(documentSnapshot => {
-          clinicsList.push({
-            id: documentSnapshot.id,
-            ...documentSnapshot.data(),
-          });
-        });
-
-        setClinics(clinicsList);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Firestore error fetching clinics:', error);
-        setIsLoading(false);
-      }
-    };
-
     fetchClinics();
-    */
   }, []);
+
+  // Fetch clinics from Firestore
+  const fetchClinics = async () => {
+    try {
+      const clinicsRef = collection(firestore, 'Clinics');
+      const querySnapshot = await getDocs(clinicsRef);
+      
+      const clinicsList = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        console.log('Clinic data:', doc.id, data);
+        
+        // Handle both "Name" and "Name " (with trailing space)
+        const clinicName = data.Name || data['Name '] || data.name || 'Unnamed Clinic';
+        
+        clinicsList.push({
+          id: doc.id,
+          Name: clinicName.trim(), // Trim any extra spaces
+          Doctors: data.Doctors || [],
+        });
+      });
+
+      // Sort by name
+      clinicsList.sort((a, b) => {
+        const nameA = a.Name || '';
+        const nameB = b.Name || '';
+        return nameA.localeCompare(nameB);
+      });
+
+      setClinics(clinicsList);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching clinics:', error);
+      setIsLoading(false);
+    }
+  };
 
   // Loading view
   const LoadingView = () => (
@@ -100,50 +64,26 @@ const ClinicsScreen = ({ navigation }) => {
   );
 
   // Render each clinic card
-  // const renderClinicItem = ({ item }) => (
-  //   <TouchableOpacity
-  //     style={styles.clinicCard}
-  //     onPress={() => 
-  //       navigation.navigate('DoctorList', {
-  //         clinicId: item.id,
-  //         clinicName: item.name || 'Clinic Details',
-  //       })
-  //     }
-  //     activeOpacity={0.7}
-  //   >
-  //     <Text style={styles.clinicName}>{item.name || 'Unnamed Clinic'}</Text>
-  //     {item.description && (
-  //       <Text style={styles.clinicDescription}>{item.description}</Text>
-  //     )}
-  //     {item.Doctors && (
-  //       <Text style={styles.doctorCount}>
-  //         {item.Doctors.length} {item.Doctors.length === 1 ? 'Doctor' : 'Doctors'}
-  //       </Text>
-  //     )}
-  //   </TouchableOpacity>
-  // );
-const renderClinicItem = ({ item }) => (
-  <TouchableOpacity
-    style={styles.clinicCard}
-    onPress={() => 
-      navigation.navigate('DoctorList', {
-        clinicId: item.id,
-        clinicName: item.name || 'Clinic Details',
-      })
-    }
-    activeOpacity={0.7}
-  >
-    <Text style={styles.clinicName}>{item.name || 'Unnamed Clinic'}</Text>
-    {item.description && (
-      <Text style={styles.clinicDescription}>{item.description}</Text>
-    )}
-    {item.Doctors && (
-      <Text style={styles.doctorCount}>
-        {item.Doctors.length} {item.Doctors.length === 1 ? 'Doctor' : 'Doctors'}
-      </Text>
-    )}
-  </TouchableOpacity>
-);
+  const renderClinicItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.clinicCard}
+      onPress={() => 
+        navigation.navigate('DoctorList', {
+          clinicId: item.id,
+          clinicName: item.Name,
+          doctorIds: item.Doctors,
+        })
+      }
+      activeOpacity={0.7}
+    >
+      <Text style={styles.clinicName}>{item.Name}</Text>
+      {item.Doctors && item.Doctors.length > 0 && (
+        <Text style={styles.doctorCount}>
+          {item.Doctors.length} {item.Doctors.length === 1 ? 'Doctor' : 'Doctors'}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
 
   if (isLoading) {
     return <LoadingView />;
@@ -195,11 +135,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
     color: '#2b8a3e',
-  },
-  clinicDescription: {
-    fontSize: 14,
-    color: '#6b7a8f',
-    marginBottom: 5,
   },
   doctorCount: {
     fontSize: 13,
