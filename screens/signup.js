@@ -2,6 +2,8 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Button, Text, TextInput, View } from 'react-native';
 import { auth, doc, firestore, serverTimestamp, setDoc } from '../firebaseConfig';
+import { TouchableOpacity } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 export default function SignUpScreen({ navigation }) {
   const [userName, setUserName] = useState('');
@@ -87,12 +89,19 @@ export default function SignUpScreen({ navigation }) {
         keyboardType="numeric"
         style={styles.input}
       />
-      <TextInput
-        placeholder="Gender"
-        value={gender}
-        onChangeText={setGender}
-        style={styles.input}
-      />
+    <Text style={{ marginBottom: 6, fontSize: 16 }}>Gender</Text>
+<View style={styles.pickerContainer}>
+  <Picker
+    selectedValue={gender}
+    onValueChange={(value) => setGender(value)}
+    style={styles.picker}
+  >
+    <Picker.Item label="Select Gender" value="" />
+    <Picker.Item label="Male" value="male" />
+    <Picker.Item label="Female" value="female" />
+  </Picker>
+</View>
+
       <TextInput
         placeholder="Email"
         value={email}
@@ -111,21 +120,59 @@ export default function SignUpScreen({ navigation }) {
 
       {error ? <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text> : null}
 
-      {loading ? (
-        <ActivityIndicator size="small" color="#007bff" />
-      ) : (
-        <Button title="Sign Up" onPress={handleSignUp} disabled={loading} />
-      )}
+     {loading ? (
+  <ActivityIndicator size="large" color="#4A90E2" style={{ marginTop: 10 }} />
+) : (
+  <TouchableOpacity style={styles.primaryBtn} onPress={handleSignUp}>
+    <Text style={styles.primaryBtnText}>Sign Up</Text>
+  </TouchableOpacity>
+)}
 
-      <Button
-        title="Go to Login"
-        onPress={() => navigation.navigate('Login')}
-        style={{ marginTop: 10 }}
-      />
+<TouchableOpacity
+  style={styles.secondaryBtn}
+  onPress={() => navigation.navigate('Login')}
+>
+  <Text style={styles.secondaryBtnText}>Go to Login</Text>
+</TouchableOpacity>
+
     </View>
   );
 }
 
 const styles = {
-  input: { marginBottom: 10, borderBottomWidth: 1, padding: 6 },
+  input: {
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    padding: 6,
+    borderColor: '#aaa',
+  },
+
+  primaryBtn: {
+    backgroundColor: '#28813fff',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+
+  primaryBtnText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  secondaryBtn: {
+    borderWidth: 2,
+    borderColor: '#28813fff',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 15,
+  },
+
+  secondaryBtnText: {
+    color: '#28813fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
 };

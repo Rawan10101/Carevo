@@ -84,7 +84,7 @@ export default function LoginScreen({ navigation }) {
               paddingVertical: 10,
               paddingHorizontal: 20,
               borderRadius: 20,
-              backgroundColor: role === r ? '#097ae6' : '#ccc',
+              backgroundColor: role === r ? '#28813fff' : '#ccc',
             }}
           >
             <Text style={{ color: role === r ? '#fff' : '#333', fontWeight: role === r ? 'bold' : 'normal' }}>
@@ -95,13 +95,13 @@ export default function LoginScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#097ae6" style={{ marginBottom: 20 }} />
+        <ActivityIndicator size="large" color="#28813fff" style={{ marginBottom: 20 }} />
       ) : (
         <>
           <TouchableOpacity
             onPress={handleLogin}
             style={{
-              backgroundColor: '#097ae6',
+              backgroundColor: '#28813fff',
               padding: 14,
               borderRadius: 8,
               alignItems: 'center',
@@ -112,7 +112,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => navigation.navigate('SignUp')} style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#097ae6', fontWeight: 'bold', fontSize: 16 }}>
+            <Text style={{ color: '#28813fff', fontWeight: 'bold', fontSize: 16 }}>
               Don't have an account? Sign Up
             </Text>
           </TouchableOpacity>
