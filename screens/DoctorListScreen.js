@@ -19,7 +19,8 @@ import {
   query, 
   where, 
   documentId,
-  Timestamp 
+  Timestamp,
+  arrayUnion
 } from 'firebase/firestore';
 
 const DoctorListScreen = ({ route, navigation }) => {
@@ -95,11 +96,19 @@ const DoctorListScreen = ({ route, navigation }) => {
 
   // Function to book the appointment and update Firestore
   const bookAppointment = async (doctorId, doctorName, slot, slotIndex) => {
-    if (bookingInProgress) return; // Prevent multiple clicks
+    if (bookingInProgress) return;
     
     setBookingInProgress(true);
 
     try {
+      const currentUserId = currentUser.uid;
+      console.log('=== BOOKING APPOINTMENT ===');
+      console.log('Current User ID:', currentUserId);
+      console.log('Doctor ID:', doctorId);
+      console.log('Doctor Name:', doctorName);
+      console.log('Clinic ID:', clinicId);
+      console.log('Clinic Name:', clinicName);
+      
       // Get the doctor document reference
       const doctorRef = doc(firestore, 'Doctors', doctorId);
       const doctorSnapshot = await getDoc(doctorRef);
@@ -113,10 +122,9 @@ const DoctorListScreen = ({ route, navigation }) => {
       const doctorData = doctorSnapshot.data();
       const slots = doctorData.Slots || doctorData.slots || [];
 
-      // Find the slot by comparing timestamps
+      // Find the slot and check if it's still available
       const slotToBook = slots.find(s => {
         if (s.time && slot.time) {
-          // Compare timestamps using seconds and nanoseconds
           return s.time.seconds === slot.time.seconds && 
                  s.time.nanoseconds === slot.time.nanoseconds;
         }
@@ -132,10 +140,13 @@ const DoctorListScreen = ({ route, navigation }) => {
       if (slotToBook.isBooked) {
         Alert.alert('Already Booked', 'This slot has already been booked by another patient.');
         setBookingInProgress(false);
-        // Refresh the doctors list
         fetchDoctorsByIds();
         return;
       }
+
+      // Create unique appointment ID
+      const appointmentId = `${doctorId}_${slot.time.seconds}`;
+      console.log('Appointment ID:', appointmentId);
 
       // Update the slot to mark it as booked
       const updatedSlots = slots.map(s => {
@@ -145,18 +156,63 @@ const DoctorListScreen = ({ route, navigation }) => {
           return {
             ...s,
             isBooked: true,
-            patientId: currentUser.uid,
+            patientId: currentUserId,
             patientEmail: currentUser.email || 'N/A',
             bookedAt: Timestamp.now(),
+            appointmentId: appointmentId,
           };
         }
         return s;
       });
 
-      // Update Firestore
+      // Update Doctor's Slots
+      console.log('Updating doctor slots...');
       await updateDoc(doctorRef, {
         Slots: updatedSlots,
       });
+      console.log('Doctor slots updated successfully');
+
+      // Get user document first to check if it exists
+      const userRef = doc(firestore, 'users', currentUserId);
+      console.log('Fetching user document...');
+      const userSnapshot = await getDoc(userRef);
+      
+      if (!userSnapshot.exists()) {
+        console.error('User document does not exist!');
+        Alert.alert('Error', 'User profile not found. Please contact support.');
+        setBookingInProgress(false);
+        return;
+      }
+
+      const userData = userSnapshot.data();
+      console.log('Current user data:', userData);
+      console.log('Current Appointments:', userData.Appointments);
+      
+      // Create appointment object
+      const appointmentData = {
+        appointmentId: appointmentId,
+        doctorId: doctorId,
+        doctorName: doctorName,
+        clinicId: clinicId,
+        clinicName: clinicName,
+        slotTime: slot.time,
+        bookedAt: Timestamp.now(),
+        status: 'confirmed'
+      };
+
+      console.log('Appointment data to add:', appointmentData);
+
+      // Use arrayUnion to add to Appointments array
+      console.log('Updating user appointments...');
+      await updateDoc(userRef, {
+        Appointments: arrayUnion(appointmentData)
+      });
+      console.log('User appointments updated successfully');
+
+      // Verify the update
+      const updatedUserSnapshot = await getDoc(userRef);
+      const updatedUserData = updatedUserSnapshot.data();
+      console.log('Updated Appointments array:', updatedUserData.Appointments);
 
       // Update local state
       setDoctors(prevDoctors => 
@@ -183,8 +239,11 @@ const DoctorListScreen = ({ route, navigation }) => {
       setBookingInProgress(false);
 
     } catch (error) {
-      console.error('Error booking appointment:', error);
-      Alert.alert('Error', 'Failed to book appointment. Please try again.');
+      console.error('=== BOOKING ERROR ===');
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Full error:', error);
+      Alert.alert('Error', 'Failed to book appointment. Please try again.\n\nError: ' + error.message);
       setBookingInProgress(false);
     }
   };
