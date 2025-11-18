@@ -43,6 +43,7 @@ export default function AppointmentsScreen({ navigation }) {
     }
   };
 
+  
   // REAL-TIME FIRESTORE LISTENER
 // 1. Real-time listener (like now, but do not update past inside it)
 useEffect(() => {
