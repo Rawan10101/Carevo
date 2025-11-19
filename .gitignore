@@ -41,10 +41,10 @@ yarn-error.*
 /ios
 /android
 
-# Firebase config (contains API keys)
-firebaseConfig.*
-firebase-config.*
-/src/firebaseConfig.*
-/src/firebase-config.*
-/config/firebaseConfig.*
-.env.firebase
+# # Firebase config (contains API keys)
+# firebaseConfig.*
+# firebase-config.*
+# /src/firebaseConfig.*
+# /src/firebase-config.*
+# /config/firebaseConfig.*
+# .env.firebase

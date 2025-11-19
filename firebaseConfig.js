@@ -1,37 +1,27 @@
 // firebaseConfig.js
 import { initializeApp } from "firebase/app";
-import {
-  initializeAuth,
-  getReactNativePersistence,
-} from "firebase/auth";
+import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  getFirestore,
-  serverTimestamp,
-  doc,
-  setDoc,
-} from "firebase/firestore";
+import { getFirestore, serverTimestamp, doc, setDoc } from "firebase/firestore";
 
-// Your Firebase config
+// Use process.env for EAS builds
 const firebaseConfig = {
-  apiKey: "AIzaSyByZ4YaBjwGz7o7y324cjbd5W7M8LwWxaU",
-  authDomain: "carevo-9c065.firebaseapp.com",
-  projectId: "carevo-9c065",
-  storageBucket: "carevo-9c065.appspot.com",
-  messagingSenderId: "378050848361",
-  appId: "1:378050848361:web:828ab1f3f06be9ffc3e4f8",
-  measurementId: "G-F2CGJ50CC3",
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+  measurementId: process.env.FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// ✅ Initialize Auth with persistent storage for React Native
+// Auth and Firestore
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
-
-// Initialize Firestore
 const firestore = getFirestore(app);
 
 export { auth, firestore, serverTimestamp, doc, setDoc };

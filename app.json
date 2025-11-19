@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "carevo",
+    "name": "Carevo",
     "slug": "carevo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,17 +13,37 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rawan101.carevo",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.rawan101.carevo"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "02859d1e-837c-44d9-8746-73f96f42324a"
+      }
+    },
+    "owner": "rawan101",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/02859d1e-837c-44d9-8746-73f96f42324a"
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
