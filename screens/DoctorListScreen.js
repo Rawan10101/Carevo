@@ -97,232 +97,239 @@ const DoctorListScreen = ({ route, navigation }) => {
 
   // Function to book the appointment and update Firestore
   const bookAppointment = async (doctorId, doctorName, slot, slotIndex) => {
-    if (bookingInProgress) return;
-    
-    setBookingInProgress(true);
+  if (bookingInProgress) return;
+  setBookingInProgress(true);
 
-    try {
-      const currentUserId = currentUser.uid;
-      console.log('=== BOOKING APPOINTMENT ===');
-      console.log('Current User ID:', currentUserId);
-      console.log('Doctor ID:', doctorId);
-      console.log('Doctor Name:', doctorName);
-      console.log('Clinic ID:', clinicId);
-      console.log('Clinic Name:', clinicName);
-      
-      // Get the doctor document reference
-      const doctorRef = doc(firestore, 'Doctors', doctorId);
-      const doctorSnapshot = await getDoc(doctorRef);
+  try {
+    const currentUserId = currentUser.uid;
+    const appointmentId = `${doctorId}_${slot.time.seconds}`; // consistent id
 
-      if (!doctorSnapshot.exists()) {
-        Alert.alert('Error', 'Doctor not found.');
-        setBookingInProgress(false);
-        return;
-      }
+    // Refs
+    const doctorRef = doc(firestore, 'Doctors', doctorId);
+    const userRef = doc(firestore, 'users', currentUserId);
 
-      const doctorData = doctorSnapshot.data();
-      const slots = doctorData.Slots || doctorData.slots || [];
+    // Fetch current docs
+    const [doctorSnapshot, userSnap] = await Promise.all([
+      getDoc(doctorRef),
+      getDoc(userRef)
+    ]);
 
-      // Find the slot and check if it's still available
-      const slotToBook = slots.find(s => {
-        if (s.time && slot.time) {
-          return s.time.seconds === slot.time.seconds && 
-                 s.time.nanoseconds === slot.time.nanoseconds;
-        }
-        return false;
-      });
-      
-      if (!slotToBook) {
-        Alert.alert('Error', 'Slot not found.');
-        setBookingInProgress(false);
-        return;
-      }
-
-      if (slotToBook.isBooked) {
-        Alert.alert('Already Booked', 'This slot has already been booked by another patient.');
-        setBookingInProgress(false);
-        fetchDoctorsByIds();
-        return;
-      }
-      // CREATE APPOINTMENT ID
-      const appointmentId = `${doctorId}_${slot.time.seconds}`;
-      console.log('Appointment ID:', appointmentId);
-      // ===== RESCHEDULE MODE =====
-if (rescheduleData) {
-  console.log('Processing reschedule...');
-  
-  // 1. Free the OLD doctor slot (Logic remains correct)
-  // ... (Your code for freeing the old slot in the Doctor's document)
-
-  // 2. Book the NEW slot (Logic remains correct)
-  // ... (Your code for booking the new slot in the Doctor's document)
-
-  // 3. Update user's Appointments array: Remove Old, Add New (CRITICAL FIX)
-  const userRef = doc(firestore, 'users', currentUserId);
-  const userSnap = await getDoc(userRef);
-  
-  if (userSnap.exists()) {
-    const userData = userSnap.data();
-    const appointments = userData.Appointments || [];
-
-    // A. Find the OLD appointment object to remove
-    const oldAppointment = appointments.find(apt => {
-        // Priority match by unique appointmentId
-        const matchById = rescheduleData.appointmentId && apt.appointmentId === rescheduleData.appointmentId;
-        // Fallback match using doctor/time for reliability
-        const matchByDetails = apt.doctorId === rescheduleData.doctorId &&
-                               apt.slotTime?.seconds === rescheduleData.slotTime.seconds &&
-                               apt.slotTime?.nanoseconds === rescheduleData.slotTime.nanoseconds;
-
-        return matchById || matchByDetails;
-    });
-    
-    // Define the NEW appointment object
-    const newAppointmentData = {
-        appointmentId: appointmentId,
-        doctorId: doctorId,
-        doctorName: doctorName,
-        clinicId: clinicId,
-        clinicName: clinicName,
-        slotTime: slot.time,
-        bookedAt: Timestamp.now(),
-        status: 'confirmed'
-    };
-
-    // B. Execute the REMOVAL (Cancel Old)
-    if (oldAppointment) {
-        // Use arrayRemove to reliably remove the exact object that was found
-        await updateDoc(userRef, {
-            Appointments: arrayRemove(oldAppointment)
-        });
-        console.log('Old appointment removed successfully via arrayRemove');
+    if (!doctorSnapshot.exists()) {
+      Alert.alert('Error', 'Doctor not found.');
+      setBookingInProgress(false);
+      return;
     }
-    
-    // C. Execute the ADDITION (Book New)
-    await updateDoc(userRef, {
-        Appointments: arrayUnion(newAppointmentData)
-    });
-    console.log('New appointment added successfully via arrayUnion');
-    
-  }
 
-  Alert.alert(
-    'Success!',
-    `Your appointment has been **rescheduled** to ${formatTimestamp(slot.time).date} at ${formatTimestamp(slot.time).time}. The old appointment has been cancelled.`,
-    [{ 
-      text: 'OK',
-      onPress: () => navigation.navigate('Appointments')
-    }]
-  );
+    const doctorData = doctorSnapshot.data();
+    const slots = doctorData.Slots || doctorData.slots || [];
 
-} else {
-  // YOUR EXISTING NORMAL BOOKING CODE GOES HERE
-  // (Keep everything you currently have for normal booking)
+    // Find the slot we intend to book
+    const foundIndex = slots.findIndex(s => s.time && slot.time &&
+      s.time.seconds === slot.time.seconds &&
+      s.time.nanoseconds === slot.time.nanoseconds
+    );
 
+    if (foundIndex === -1) {
+      Alert.alert('Error', 'Slot not found.');
+      setBookingInProgress(false);
+      return;
+    }
 
-      console.log('Using appointmentId:', appointmentId);
+    if (slots[foundIndex].isBooked) {
+      Alert.alert('Already Booked', 'This slot has already been booked by another patient.');
+      setBookingInProgress(false);
+      // refresh UI to reflect latest
+      fetchDoctorsByIds();
+      return;
+    }
 
-      // Update the slot to mark it as booked
-      const updatedSlots = slots.map(s => {
-        if (s.time && slot.time && 
-            s.time.seconds === slot.time.seconds && 
-            s.time.nanoseconds === slot.time.nanoseconds) {
-          return {
-            ...s,
-            isBooked: true,
-            patientId: currentUserId,
-            patientEmail: currentUser.email || 'N/A',
-            bookedAt: Timestamp.now(),
-            appointmentId: appointmentId,
-          };
-        }
-        return s;
-      });
+    // ===== RESCHEDULE FLOW =====
+    if (rescheduleData) {
+      console.log('=== RESCHEDULE FLOW ===');
 
-      // Update Doctor's Slots
-      console.log('Updating doctor slots...');
-      await updateDoc(doctorRef, {
-        Slots: updatedSlots,
-      });
-      console.log('Doctor slots updated successfully');
+      // 1) Optionally free OLD doctor slot (safe even if AppointmentsScreen already freed it)
+      try {
+        const oldDoctorId = rescheduleData.doctorId;
+        const oldSlotTime = rescheduleData.slotTime;
 
-      // Get user document first to check if it exists
-      const userRef = doc(firestore, 'users', currentUserId);
-      console.log('Fetching user document...');
-      const userSnapshot = await getDoc(userRef);
-      
-      if (!userSnapshot.exists()) {
-        console.error('User document does not exist!');
-        Alert.alert('Error', 'User profile not found. Please contact support.');
-        setBookingInProgress(false);
-        return;
-      }
+        if (oldDoctorId) {
+          const oldDoctorRef = doc(firestore, 'Doctors', oldDoctorId);
+          const oldDocSnap = await getDoc(oldDoctorRef);
 
-      const userData = userSnapshot.data();
-      console.log('Current user data:', userData);
-      console.log('Current Appointments:', userData.Appointments);
-      
-      // Create appointment object
-      const appointmentData = {
-        appointmentId: appointmentId,
-        doctorId: doctorId,
-        doctorName: doctorName,
-        clinicId: clinicId,
-        clinicName: clinicName,
-        slotTime: slot.time,
-        bookedAt: Timestamp.now(),
-        status: 'confirmed'
-      };
-
-      console.log('Appointment data to add:', appointmentData);
-
-      // Use arrayUnion to add to Appointments array
-      console.log('Updating user appointments...');
-      await updateDoc(userRef, {
-        Appointments: arrayUnion(appointmentData)
-      });
-      console.log('User appointments updated successfully');
-
-      // Verify the update
-      const updatedUserSnapshot = await getDoc(userRef);
-      const updatedUserData = updatedUserSnapshot.data();
-      console.log('Updated Appointments array:', updatedUserData.Appointments);
-
-      // Update local state
-      setDoctors(prevDoctors => 
-        prevDoctors.map(doctor => {
-          if (doctor.id === doctorId) {
-            return {
-              ...doctor,
-              Slots: updatedSlots,
-            };
+          if (oldDocSnap.exists()) {
+            const oldSlots = oldDocSnap.data().Slots || oldDocSnap.data().slots || [];
+            const newOldSlots = oldSlots.map(s => {
+              if (s.time &&
+                  oldSlotTime &&
+                  s.time.seconds === oldSlotTime.seconds &&
+                  s.time.nanoseconds === oldSlotTime.nanoseconds) {
+                return { ...s, isBooked: false, patientId: "", patientEmail: "", appointmentId: "" };
+              }
+              return s;
+            });
+            await updateDoc(oldDoctorRef, { Slots: newOldSlots });
           }
-          return doctor;
+        }
+      } catch (err) {
+        console.warn('Failed to free old doctor slot (continuing):', err.message);
+      }
+
+      // 2) Mark the NEW doctor's slot as booked
+      const updatedSlots = [...slots];
+      updatedSlots[foundIndex] = {
+        ...updatedSlots[foundIndex],
+        isBooked: true,
+        patientId: currentUserId,
+        patientEmail: currentUser?.email || '',
+        bookedAt: Timestamp.now(),
+        appointmentId: appointmentId,
+      };
+      await updateDoc(doctorRef, { Slots: updatedSlots });
+
+      // 3) Update user's Appointments: remove the old appointment and add the new one
+      if (userSnap.exists()) {
+        const userAppointments = userSnap.data().Appointments || [];
+
+        // find exact old appointment object (to use arrayRemove) if present
+        const oldAppointmentObj = userAppointments.find(apt => {
+          const matchById = rescheduleData.appointmentId && apt.appointmentId === rescheduleData.appointmentId;
+          const matchByTime = apt.doctorId === rescheduleData.doctorId &&
+                              apt.slotTime?.seconds === rescheduleData.slotTime.seconds &&
+                              apt.slotTime?.nanoseconds === rescheduleData.slotTime.nanoseconds;
+          return matchById || matchByTime;
+        });
+
+        // remove old using arrayRemove if we found exact object, otherwise construct new list
+        if (oldAppointmentObj) {
+          // remove old then add new
+          await updateDoc(userRef, {
+            Appointments: arrayRemove(oldAppointmentObj)
+          });
+          await updateDoc(userRef, {
+            Appointments: arrayUnion({
+              appointmentId,
+              doctorId,
+              doctorName,
+              clinicId,
+              clinicName,
+              slotTime: slot.time,
+              bookedAt: Timestamp.now(),
+              status: 'confirmed'
+            })
+          });
+        } else {
+          // fallback: filter and replace whole Appointments array atomically
+          const filtered = userAppointments.filter(apt => {
+            const matchById = rescheduleData.appointmentId && apt.appointmentId === rescheduleData.appointmentId;
+            const matchByTime = apt.doctorId === rescheduleData.doctorId &&
+                                apt.slotTime?.seconds === rescheduleData.slotTime.seconds &&
+                                apt.slotTime?.nanoseconds === rescheduleData.slotTime.nanoseconds;
+            return !(matchById || matchByTime);
+          });
+
+          filtered.push({
+            appointmentId,
+            doctorId,
+            doctorName,
+            clinicId,
+            clinicName,
+            slotTime: slot.time,
+            bookedAt: Timestamp.now(),
+            status: 'confirmed'
+          });
+
+          await updateDoc(userRef, { Appointments: filtered });
+        }
+      } else {
+        // user doc missing — create appointments array with this new appointment
+        await updateDoc(userRef, {
+          Appointments: arrayUnion({
+            appointmentId,
+            doctorId,
+            doctorName,
+            clinicId,
+            clinicName,
+            slotTime: slot.time,
+            bookedAt: Timestamp.now(),
+            status: 'confirmed'
+          })
+        });
+      }
+
+      // 4) Update local UI
+      setDoctors(prev =>
+        prev.map(d => d.id === doctorId ? { ...d, Slots: updatedSlots } : d)
+      );
+
+      Alert.alert('Success', `Appointment rescheduled to ${formatTimestamp(slot.time).date} at ${formatTimestamp(slot.time).time}.`);
+      navigation.navigate('Appointments');
+      setBookingInProgress(false);
+      return;
+    }
+
+    // ===== NEW BOOKING =====
+    // Mark doctor slot as booked
+    const newSlots = slots.map((s, i) => {
+      if (i === foundIndex) {
+        return {
+          ...s,
+          isBooked: true,
+          patientId: currentUserId,
+          patientEmail: currentUser?.email || '',
+          bookedAt: Timestamp.now(),
+          appointmentId: appointmentId
+        };
+      }
+      return s;
+    });
+
+    await updateDoc(doctorRef, { Slots: newSlots });
+
+    // Update user's appointments (add new)
+    if (userSnap.exists()) {
+      const currentAppointments = userSnap.data().Appointments || [];
+      currentAppointments.push({
+        appointmentId,
+        doctorId,
+        doctorName,
+        clinicId,
+        clinicName,
+        slotTime: slot.time,
+        bookedAt: Timestamp.now(),
+        status: 'confirmed'
+      });
+      await updateDoc(userRef, { Appointments: currentAppointments });
+    } else {
+      // create user appointments array
+      await updateDoc(userRef, {
+        Appointments: arrayUnion({
+          appointmentId,
+          doctorId,
+          doctorName,
+          clinicId,
+          clinicName,
+          slotTime: slot.time,
+          bookedAt: Timestamp.now(),
+          status: 'confirmed'
         })
-      );
-
-      const formatted = formatTimestamp(slot.time);
-      
-      // Show success message
-      Alert.alert(
-        'Success!',
-        `Your appointment with ${doctorName} has been booked for ${formatted.date} at ${formatted.time}.`,
-        [{ text: 'OK' }]
-      );
-
-      setBookingInProgress(false);
+      });
     }
 
-    } catch (error) {
-      console.error('=== BOOKING ERROR ===');
-      console.error('Error message:', error.message);
-      console.error('Error code:', error.code);
-      console.error('Full error:', error);
-      Alert.alert('Error', 'Failed to book appointment. Please try again.\n\nError: ' + error.message);
-      setBookingInProgress(false);
-    }
+    // Update local UI
+    setDoctors(prev => prev.map(d => d.id === doctorId ? { ...d, Slots: newSlots } : d));
 
+    const formatted = formatTimestamp(slot.time);
+    Alert.alert('Success', `Your appointment with ${doctorName} has been booked for ${formatted.date} at ${formatted.time}.`);
+    navigation.navigate('Appointments');
+
+  } catch (error) {
+    console.error('=== BOOKING ERROR ===', error);
+    Alert.alert('Error', 'Failed to book appointment. ' + (error.message || ''));
+  } finally {
+    setBookingInProgress(false);
+  }
 };
+
 
   // Function to change the expanded state
   const toggleExpansion = (doctorId) => {
@@ -424,9 +431,12 @@ if (rescheduleData) {
   const renderDoctorItem = ({ item }) => {
     const isExpanded = item.id === expandedDoctorId;
     
-    const availableSlots = item.Slots 
-        ? item.Slots.filter(slot => slot.isBooked === false)
-        : [];
+    const availableSlots = item.Slots
+      ? item.Slots.filter(slot => 
+      slot.isBooked === false && 
+      slot.time?.toDate() > new Date() // only future slots
+        )
+      : [];
 
     const bookedSlots = item.Slots 
         ? item.Slots.filter(slot => slot.isBooked === true)

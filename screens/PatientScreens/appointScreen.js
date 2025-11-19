@@ -43,53 +43,74 @@ export default function AppointmentsScreen({ navigation }) {
     }
   };
 
+  
   // REAL-TIME FIRESTORE LISTENER
-  useEffect(() => {
+// 1. Real-time listener (like now, but do not update past inside it)
+useEffect(() => {
+  const currentUserId = auth.currentUser?.uid;
+  if (!currentUserId) return;
+
+  const userRef = doc(firestore, 'users', currentUserId);
+
+  const unsubscribe = onSnapshot(userRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      setAppointments([]);
+      setLoading(false);
+      return;
+    }
+
+    const userData = snapshot.data();
+    const userAppointments = userData.Appointments || [];
+
+    // Map appointments with displayStatus
+    const updatedAppointmentsState = userAppointments.map((apt) => {
+      const status = apt.status || 'confirmed';
+      const displayStatus = status === 'confirmed' ? 'upcoming' : status;
+      return { ...apt, displayStatus, status };
+    });
+
+    // Sort newest first
+    updatedAppointmentsState.sort((a, b) => {
+      if (a.slotTime && b.slotTime) return b.slotTime.seconds - a.slotTime.seconds;
+      return 0;
+    });
+
+    setAppointments(updatedAppointmentsState);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+// 2. Timer to update past appointments automatically
+useEffect(() => {
+  const interval = setInterval(async () => {
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) return;
 
     const userRef = doc(firestore, 'users', currentUserId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return;
 
-    const unsubscribe = onSnapshot(userRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        setAppointments([]);
-        setLoading(false);
-        return;
+    const userAppointments = userSnap.data().Appointments || [];
+    let updated = false;
+
+    const updatedAppointments = userAppointments.map((apt) => {
+      if (apt.status === 'confirmed' && apt.slotTime?.toDate() < new Date()) {
+        updated = true;
+        return { ...apt, status: 'past' };
       }
-
-      const userData = snapshot.data();
-      const userAppointments = userData.Appointments || [];
-
-      const categorizedAppointments = userAppointments.map((apt) => {
-        let status = apt.status || 'confirmed';
-
-        // Check if in past
-        try {
-          if (status === 'confirmed' && apt.slotTime?.toDate() < new Date()) {
-            status = 'past';
-          }
-        } catch {}
-
-        return {
-          ...apt,
-          displayStatus: status === 'confirmed' ? 'upcoming' : status
-        };
-      });
-
-      // Sort by newest first
-      categorizedAppointments.sort((a, b) => {
-        if (a.slotTime && b.slotTime) {
-          return b.slotTime.seconds - a.slotTime.seconds;
-        }
-        return 0;
-      });
-
-      setAppointments(categorizedAppointments);
-      setLoading(false);
+      return apt;
     });
 
-    return () => unsubscribe();
-  }, []);
+    if (updated) {
+      await updateDoc(userRef, { Appointments: updatedAppointments });
+      // The onSnapshot will catch this and update the UI immediately
+    }
+  }, 60000); // check every 60 seconds (can be reduced to 10–15s if needed)
+
+  return () => clearInterval(interval);
+}, []);
 
   // CANCEL APPOINTMENT
   // ======================================================
@@ -169,23 +190,73 @@ const handleCancelAppointment = (appointment) => {
 // ======================================================
 // RESCHEDULE APPOINTMENT
 // ======================================================
-const handleReschedule = (appointment) => {
+const handleReschedule = async (appointment) => {
   Alert.alert(
-    'Reschedule Appointment',
+    "Reschedule Appointment",
     `Reschedule appointment with ${appointment.doctorName}?`,
     [
-      { text: 'Cancel', style: 'cancel' },
+      { text: "Cancel", style: "cancel" },
       {
-        text: 'Continue',
-        onPress: () => {
-          navigation.navigate('Clinics', { 
-            rescheduleData: appointment 
-          });
+        text: "Continue",
+        onPress: async () => {
+          try {
+            const currentUserId = auth.currentUser.uid;
+
+            // 1. FREE OLD DOCTOR SLOT
+            const doctorRef = doc(firestore, 'Doctors', appointment.doctorId);
+            const doctorSnap = await getDoc(doctorRef);
+
+            if (doctorSnap.exists()) {
+              const updatedSlots = doctorSnap.data().Slots.map(slot =>
+                (slot.time?.seconds === appointment.slotTime.seconds &&
+                 slot.time?.nanoseconds === appointment.slotTime.nanoseconds)
+                  ? { time: slot.time, isBooked: false, patientId: "", patientEmail: "", appointmentId: "" }
+                  : slot
+              );
+              await updateDoc(doctorRef, { Slots: updatedSlots });
+            }
+
+            // 2. UPDATE USER APPOINTMENT → status: “rescheduled”
+            const userRef = doc(firestore, 'users', currentUserId);
+            const userSnap = await getDoc(userRef);
+
+            if (userSnap.exists()) {
+              const appointments = userSnap.data().Appointments || [];
+
+              const updatedAppointments = appointments.map(apt => {
+                const matchById =
+                  apt.appointmentId && appointment.appointmentId &&
+                  apt.appointmentId === appointment.appointmentId;
+
+                const matchByTime =
+                  apt.doctorId === appointment.doctorId &&
+                  apt.slotTime?.seconds === appointment.slotTime.seconds &&
+                  apt.slotTime?.nanoseconds === appointment.slotTime.nanoseconds;
+
+                if (matchById || matchByTime) {
+                  return { ...apt, status: "rescheduled" };
+                }
+                return apt;
+              });
+
+              await updateDoc(userRef, { Appointments: updatedAppointments });
+            }
+
+            // 3. GO TO CLINICS PAGE WITH RESCHEDULE DATA  
+            navigation.navigate("Clinics", {
+              rescheduleData: appointment,
+            });
+
+          } catch (error) {
+            console.error(error);
+            Alert.alert("Error", error.message);
+          }
         }
       }
     ]
   );
 };
+
 
   // RENDER ITEM
   const renderItem = ({ item }) => (
