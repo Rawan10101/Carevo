@@ -10,16 +10,24 @@ export default function SignUpScreen({ navigation }) {
   const [gender, setGender] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('patient'); // ✅ NEW: Default patient
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [genderModalVisible, setGenderModalVisible] = useState(false);
+  const [roleModalVisible, setRoleModalVisible] = useState(false);
 
   const genderOptions = [
     { label: 'Male', value: 'male' },
     { label: 'Female', value: 'female' },
   ];
 
-  // Simple validations
+  const roleOptions = [  // ✅ NEW: Role selector
+    { label: 'Patient', value: 'patient' },
+    { label: 'Doctor', value: 'doctor' },
+    { label: 'Nurse', value: 'nurse' },
+  ];
+
+  // Your existing validation functions (unchanged)
   const validateName = (userName) => userName.trim().length > 0 && userName.trim().length <= 50 && /^[a-zA-Z ]+$/.test(userName.trim());
   const validateAge = (age) => age.trim().length > 0 && /^\d+$/.test(age.trim()) && parseInt(age.trim(), 10) >= 0 && parseInt(age.trim(), 10) <= 150;
   const validateNumber = (phoneNumber) => phoneNumber.trim().length == 11 && /^\d+$/.test(phoneNumber.trim());
@@ -29,19 +37,19 @@ export default function SignUpScreen({ navigation }) {
   const handleSignUp = async () => {
     setError('');
 
-    if (!userName || !phoneNumber || !age || !gender || !email || !password) {
-      setError('Please fill all fields.');
+    if (!userName || !phoneNumber || !age || !gender || !role || !email || !password) {
+      setError('Please fill all fields including role.');
       return;
     }
     if (!validateName(userName)) {
       setError('Please enter a valid name.');
       return;
     }
-        if (!validateAge(age)) {
+    if (!validateAge(age)) {
       setError('Please enter a valid age.');
       return;
     }
-        if (!validateNumber(phoneNumber)) {
+    if (!validateNumber(phoneNumber)) {
       setError('Please enter a valid phone number.');
       return;
     }
@@ -59,16 +67,19 @@ export default function SignUpScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const userRef = doc(firestore, 'users', userCredential.user.uid);
 
+      // ✅ FIXED: role added + consistent field names
       await setDoc(userRef, {
-        'User-Name': userName,
-        PhoneNumber: phoneNumber,
-        Age: age,
-        Gender: gender,
+        role: role,  // ✅ CRITICAL: role field
+        name: userName,  // ✅ Consistent naming
+        phoneNumber: phoneNumber,
+        age: parseInt(age),
+        gender: gender,
         email: email,
         createdAt: serverTimestamp(),
+        Appointments: [],  // ✅ Initialize empty appointments
       });
 
-      Alert.alert('Success', 'Account created successfully!');
+      Alert.alert('Success', `Account created as ${role.toUpperCase()}!`);
       navigation.navigate('Login');
     } catch (err) {
       let friendlyError = err.message;
@@ -84,9 +95,58 @@ export default function SignUpScreen({ navigation }) {
     setLoading(false);
   };
 
+  // Your existing JSX + NEW ROLE SELECTOR
   return (
     <View style={{ padding: 20 }}>
       <Text style={{ fontSize: 24, marginBottom: 10 }}>Create Account</Text>
+
+      {/* ✅ NEW: ROLE SELECTOR */}
+      <Text style={{ marginBottom: 6, fontSize: 16 }}>Role</Text>
+      <TouchableOpacity
+        style={styles.pickerButton}
+        onPress={() => setRoleModalVisible(true)}
+      >
+        <Text style={styles.pickerButtonText}>
+          {roleOptions.find(opt => opt.value === role)?.label || 'Select Role'}
+        </Text>
+        <Text style={styles.pickerArrow}>▼</Text>
+      </TouchableOpacity>
+
+      {/* ✅ NEW: Role Modal */}
+      <Modal
+        visible={roleModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setRoleModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Role</Text>
+            <FlatList
+              data={roleOptions}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setRole(item.value);
+                    setRoleModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalOptionText}>{item.label}</Text>
+                  {role === item.value && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setRoleModalVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <TextInput
         placeholder="Full Name"
@@ -94,6 +154,7 @@ export default function SignUpScreen({ navigation }) {
         onChangeText={setUserName}
         style={styles.input}
       />
+      
       <TextInput
         placeholder="Phone Number"
         value={phoneNumber}
@@ -101,6 +162,7 @@ export default function SignUpScreen({ navigation }) {
         keyboardType="phone-pad"
         style={styles.input}
       />
+      
       <TextInput
         placeholder="Age"
         value={age}
@@ -109,7 +171,7 @@ export default function SignUpScreen({ navigation }) {
         style={styles.input}
       />
 
-      {/* Gender Selector */}
+      {/* Your existing Gender selector (unchanged) */}
       <Text style={{ marginBottom: 6, fontSize: 16 }}>Gender</Text>
       <TouchableOpacity
         style={styles.pickerButton}
@@ -121,7 +183,7 @@ export default function SignUpScreen({ navigation }) {
         <Text style={styles.pickerArrow}>▼</Text>
       </TouchableOpacity>
 
-      {/* Gender Modal */}
+      {/* Gender Modal (unchanged) */}
       <Modal
         visible={genderModalVisible}
         transparent={true}
@@ -165,6 +227,7 @@ export default function SignUpScreen({ navigation }) {
         keyboardType="email-address"
         style={styles.input}
       />
+      
       <TextInput
         placeholder="Password"
         value={password}
@@ -179,7 +242,7 @@ export default function SignUpScreen({ navigation }) {
         <ActivityIndicator size="large" color="#4A90E2" style={{ marginTop: 10 }} />
       ) : (
         <TouchableOpacity style={styles.primaryBtn} onPress={handleSignUp}>
-          <Text style={styles.primaryBtnText}>Sign Up</Text>
+          <Text style={styles.primaryBtnText}>Sign Up as {roleOptions.find(r => r.value === role)?.label}</Text>
         </TouchableOpacity>
       )}
 
@@ -192,7 +255,6 @@ export default function SignUpScreen({ navigation }) {
     </View>
   );
 }
-
 const styles = {
   input: {
     marginBottom: 10,
