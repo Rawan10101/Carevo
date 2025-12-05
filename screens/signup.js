@@ -20,14 +20,29 @@ export default function SignUpScreen({ navigation }) {
   ];
 
   // Simple validations
+  const validateName = (userName) => userName.trim().length > 0 && userName.trim().length <= 50 && /^[a-zA-Z ]+$/.test(userName.trim());
+  const validateAge = (age) => age.trim().length > 0 && /^\d+$/.test(age.trim()) && parseInt(age.trim(), 10) >= 0 && parseInt(age.trim(), 10) <= 150;
+  const validateNumber = (phoneNumber) => phoneNumber.trim().length == 11 && /^\d+$/.test(phoneNumber.trim());
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const validatePassword = (password) => password.length >= 6;
+  const validatePassword = (password) => /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]:;"'<>,.?\/\\|~`]).{8,}$/.test(password);
 
   const handleSignUp = async () => {
     setError('');
 
-    if (!userName || !phoneNumber || !age || !gender) {
+    if (!userName || !phoneNumber || !age || !gender || !email || !password) {
       setError('Please fill all fields.');
+      return;
+    }
+    if (!validateName(userName)) {
+      setError('Please enter a valid name.');
+      return;
+    }
+        if (!validateAge(age)) {
+      setError('Please enter a valid age.');
+      return;
+    }
+        if (!validateNumber(phoneNumber)) {
+      setError('Please enter a valid phone number.');
       return;
     }
     if (!validateEmail(email)) {
@@ -35,7 +50,7 @@ export default function SignUpScreen({ navigation }) {
       return;
     }
     if (!validatePassword(password)) {
-      setError('Password must be at least 6 characters.');
+      setError('Password must be at least 8 characters and a mix of letters and special characters.');
       return;
     }
 
@@ -74,7 +89,7 @@ export default function SignUpScreen({ navigation }) {
       <Text style={{ fontSize: 24, marginBottom: 10 }}>Create Account</Text>
 
       <TextInput
-        placeholder="User Name"
+        placeholder="Full Name"
         value={userName}
         onChangeText={setUserName}
         style={styles.input}
