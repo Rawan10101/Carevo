@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore, serverTimestamp, doc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 // Use process.env for EAS builds
 const firebaseConfig = {
@@ -24,4 +25,7 @@ const auth = initializeAuth(app, {
 });
 const firestore = getFirestore(app);
 
-export { auth, firestore, serverTimestamp, doc, setDoc };
+export { auth, firestore, serverTimestamp, doc, setDoc,  collection, 
+  query, 
+  where, 
+  getDocs  };

@@ -11,7 +11,7 @@ import ChatScreen from './screens/PatientScreens/chatScreen';
 // Auth Screens
 import LoginScreen from './screens/login';
 import SignUpScreen from './screens/signup';
-
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 // Patient Screens
 import DashboardScreen from './screens/PatientScreens/dashboard';
 import ClinicsScreen from './screens/PatientScreens/clinicsScreen'; 
@@ -30,6 +30,8 @@ function AuthStackScreen() {
     <AuthStack.Navigator>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+<AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+
     </AuthStack.Navigator>
   );
 }
@@ -137,6 +139,7 @@ export default function App() {
   return (
     <NavigationContainer>
       {user ? <AppTabs /> : <AuthStackScreen />}
+      
     </NavigationContainer>
   );
 }
