@@ -1,11 +1,19 @@
-// firebaseConfig.js
 import { initializeApp } from "firebase/app";
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
-import { getFirestore, serverTimestamp, doc, setDoc } from "firebase/firestore";
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  serverTimestamp, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  deleteDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs 
+} from "firebase/firestore";
 
-// Use process.env for EAS builds
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -16,16 +24,29 @@ const firebaseConfig = {
   measurementId: process.env.FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase (SAFE - handles duplicates)
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (e) {
+  app = getApp(); 
+}
 
-// Auth and Firestore
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
 const firestore = getFirestore(app);
 
-export { auth, firestore, serverTimestamp, doc, setDoc,  collection, 
-  query, 
-  where, 
-  getDocs  };
+export {
+  auth,
+  firestore,
+  serverTimestamp,
+  doc,
+  setDoc,
+  getDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs
+};
