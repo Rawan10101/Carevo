@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, SafeAreaView, StyleSheet } from 'react-native';  // ✅ Add StyleSheet
+import { View, Text, SafeAreaView, StyleSheet } from 'react-native';  // Add StyleSheet
 export default function DoctorPatientsScreen() {
   return (
     <SafeAreaView style={styles.container}>
