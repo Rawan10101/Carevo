@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { firestore, auth } from '../../firebaseConfig';
-import { doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';  // ✅ ADD setDoc
+import { doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore'; 
 
 export default function DoctorScheduleScreen() {
   const [slots, setSlots] = useState([]);
