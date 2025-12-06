@@ -1,40 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, Text, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { auth, firestore, doc, getDoc, deleteDoc } from '../firebaseConfig';
-import { updatePassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';  
 
-export default function ResetPasswordScreen({ route, navigation }) {
+export default function ResetPasswordScreen({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [validToken, setValidToken] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // ✅ FIXED: Safe route params handling
     if (route?.params) {
       const { email: routeEmail, token: routeToken } = route.params;
-      console.log('🔗 Route params:', routeEmail, routeToken);
+      console.log(' Route params:', routeEmail, routeToken);
       
       if (routeEmail && routeToken) {
         setEmail(routeEmail);
         setToken(routeToken);
         validateToken(routeEmail, routeToken);
       } else {
-        setError('No email or token provided. Please request a new password reset.');
+        setError('No email or token provided.');
         setLoading(false);
       }
     } else {
-      setError('Invalid navigation. Please request a new password reset.');
+      setError('Invalid navigation.');
       setLoading(false);
     }
   }, [route]);
 
   const validateToken = async (checkEmail, checkToken) => {
     try {
-      console.log('🔍 Validating token for:', checkEmail);
+      console.log('Validating for:', checkEmail);
       const resetRef = doc(firestore, 'passwordResets', checkEmail);
       const resetDoc = await getDoc(resetRef);
 
@@ -45,135 +42,114 @@ export default function ResetPasswordScreen({ route, navigation }) {
       }
 
       const resetData = resetDoc.data();
-      console.log('📋 Reset data:', resetData);
-
-      // Check token match and expiry
+      
       if (resetData.token !== checkToken) {
         setError('Invalid reset token.');
         setLoading(false);
         return;
       }
 
-      if (new Date(resetData.expiresAt.toDate()) < new Date()) {
+      const expiresAt = resetData.expiresAt.toDate();
+      if (new Date() > expiresAt) {
         await deleteDoc(resetRef);
-        setError('Reset link has expired.');
+        setError('Reset link expired.');
         setLoading(false);
         return;
       }
 
       setValidToken(true);
       setLoading(false);
-      console.log('✅ Token valid!');
+      console.log('Token VALID!');
     } catch (err) {
-      console.error('❌ Token validation error:', err);
-      setError('Error validating reset link: ' + err.message);
+      console.error('Error:', err);
+      setError('Validation failed: ' + err.message);
       setLoading(false);
     }
   };
 
   const handleResetPassword = async () => {
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
     setLoading(true);
+    setError('');
+    
     try {
-      // Sign in user first (required for updatePassword)
-      await signInWithEmailAndPassword(auth, email, 'temp-password-ignore');
+      // OFFICIAL FIREBASE PASSWORD RESET
+      await sendPasswordResetEmail(auth, email);
       
-      // Update password
-      await updatePassword(auth.currentUser, newPassword);
-      
-      // Delete used token
+      // CLEANUP YOUR TOKEN
       await deleteDoc(doc(firestore, 'passwordResets', email));
-
+      
       Alert.alert(
-        '✅ Password Reset Successful!',
-        'You can now login with your new password.',
-        [
-          { text: 'Login', onPress: () => navigation.replace('Login') }
-        ]
+        'Success!',
+        'Official password reset email sent to your inbox!\n\nCheck your email to complete reset.',
+        [{ text: 'Done', onPress: () => navigation.replace('Login') }]
       );
     } catch (err) {
-      console.error('❌ Reset error:', err);
-      setError('Failed to reset password: ' + err.message);
+      console.error('Reset error:', err);
+      setError('Reset failed: ' + err.message);
     }
     setLoading(false);
   };
 
   if (loading) {
     return (
-      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'center', padding: 24 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Text style={{ fontSize: 18, textAlign: 'center' }}>Validating reset link...</Text>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Text style={styles.loadingText}>Validating reset link...</Text>
       </KeyboardAvoidingView>
     );
   }
 
   if (!validToken) {
     return (
-      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'center', padding: 24 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Text style={{ fontSize: 18, textAlign: 'center', marginBottom: 24, color: 'red' }}>
-          {error}
-        </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ alignItems: 'center' }}>
-          <Text style={{ color: '#28813fff', fontWeight: 'bold', fontSize: 16 }}>Request New Reset Link</Text>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Text style={styles.errorText}>{error || 'Invalid reset link'}</Text>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={styles.backButtonText}>← Back to Login</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     );
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'center', padding: 24 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <Text style={{ fontSize: 26, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' }}>
-        Reset Password
-      </Text>
-      <Text style={{ fontSize: 16, marginBottom: 24, textAlign: 'center', color: '#666' }}>
-        Enter your new password for {email}
-      </Text>
-
-      <TextInput
-        placeholder="New Password"
-        value={newPassword}
-        onChangeText={setNewPassword}
-        secureTextEntry
-        style={{ borderBottomWidth: 1, marginBottom: 14, fontSize: 16, paddingBottom: 6 }}
-      />
-
-      <TextInput
-        placeholder="Confirm New Password"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        style={{ borderBottomWidth: 1, marginBottom: 24, fontSize: 16, paddingBottom: 6 }}
-      />
-
-      {loading ? (
-        <Text style={{ textAlign: 'center', marginBottom: 20 }}>Updating password...</Text>
-      ) : (
-        <TouchableOpacity
-          onPress={handleResetPassword}
-          style={{
-            backgroundColor: '#28813fff',
-            padding: 14,
-            borderRadius: 8,
-            alignItems: 'center',
-            marginBottom: 20,
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>Reset Password</Text>
-        </TouchableOpacity>
-      )}
-
-      {error ? (
-        <Text style={{ color: 'red', marginTop: 16, fontSize: 14, textAlign: 'center' }}>
-          {error}
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <Text style={styles.title}>Reset Password</Text>
+      <Text style={styles.subtitle}>Confirmed for {email}</Text>
+      
+      <TouchableOpacity 
+        style={styles.resetButton}
+        onPress={handleResetPassword}
+        disabled={loading}
+      >
+        <Text style={styles.resetButtonText}>
+          {loading ? 'Sending...' : 'Send Reset Email'}
         </Text>
-      ) : null}
+      </TouchableOpacity>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </KeyboardAvoidingView>
   );
 }
+
+const styles = {
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#f8f9fa' },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 12, textAlign: 'center', color: '#28813fff' },
+  subtitle: { fontSize: 16, marginBottom: 40, textAlign: 'center', color: '#666' },
+  resetButton: {
+    backgroundColor: '#28813fff',
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  resetButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  errorText: { color: 'red', textAlign: 'center', fontSize: 14, marginTop: 16 },
+  loadingText: { fontSize: 18, textAlign: 'center', color: '#666' },
+  backButton: { marginTop: 20, padding: 12, alignItems: 'center' },
+  backButtonText: { color: '#28813fff', fontWeight: 'bold', fontSize: 16 }
+};
