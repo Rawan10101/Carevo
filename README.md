@@ -13,7 +13,6 @@ It provides a unified and efficient experience for patients, doctors, nurses, re
 <img src="https://github.com/user-attachments/assets/fe01dc58-0428-4a9a-b16a-17754b0ef31d" width="150"/>
 <img src="https://github.com/user-attachments/assets/ed9b00c2-1159-485e-9578-d1288644ce27" width="150"/>
 
-<img src="https://github.com/user-attachments/assets/78274c21-e83f-4029-a94d-1673292efc6b" width="180"/>
 
 
 ## Features
