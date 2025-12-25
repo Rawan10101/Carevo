@@ -4,6 +4,23 @@ Carevo is a cross-platform hospital management mobile application built with **R
 It provides a unified and efficient experience for patients, doctors, nurses, receptionists, and administrators to manage medical records, appointments, schedules, and hospital workflow.
 
 ---
+## App Screenshots
+
+<!-- <p align="center"> -->
+  <img src="https://github.com/user-attachments/assets/61f1cb49-cb03-4579-9147-97c3e5f5acfa" width="200"/>
+  <img src="https://github.com/user-attachments/assets/a2854b65-9ba8-407d-a35d-f2dd7a5a6838" width="215"/>
+  <img src="https://github.com/user-attachments/assets/f90835cd-92f6-4053-bd83-4ac8d67268eb" width="180"/>
+<!-- </p> -->
+
+<!-- <p align="center"> -->
+  <img src="https://github.com/user-attachments/assets/fe01dc58-0428-4a9a-b16a-17754b0ef31d" width="180"/>
+  <img src="https://github.com/user-attachments/assets/e9e4b3ea-46b6-49a8-ba03-5dfdc048dce3" width="175"/>
+  <img src="https://github.com/user-attachments/assets/ed9b00c2-1159-485e-9578-d1288644ce27" width="200"/>
+<!-- </p> -->
+
+<!-- <p align="center"> -->
+  <img src="https://github.com/user-attachments/assets/78274c21-e83f-4029-a94d-1673292efc6b" width="249"/>
+<!-- </p> -->
 
 ## Features
 
