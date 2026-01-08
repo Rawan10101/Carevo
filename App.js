@@ -1,4 +1,4 @@
-// ✅ App.js - DIRECT IMPORTS (NO index.js needed)
+// App.js - DIRECT IMPORTS (NO index.js needed)
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -21,7 +21,7 @@ import AppointmentsScreen from './screens/PatientScreens/appointScreen';
 import ProfileScreen from './screens/PatientScreens/ProfileScreen';
 import DoctorListScreen from './screens/DoctorListScreen';
 
-// ✅ DOCTOR SCREENS - DIRECT IMPORTS
+//  DOCTOR SCREENS - DIRECT IMPORTS
 import DoctorAppointmentsScreen from './screens/DoctorScreens/DoctorAppointmentsScreen';
 import DoctorPatientsScreen from './screens/DoctorScreens/DoctorPatientsScreen';
 import DoctorScheduleScreen from './screens/DoctorScreens/DoctorScheduleScreen';
@@ -149,7 +149,7 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (usr) => {
       setUser(usr);
       if (usr) {
-        // ✅ FETCH USER ROLE FROM FIRESTORE
+        // FETCH USER ROLE FROM FIRESTORE
         try {
           const userRef = doc(firestore, 'users', usr.uid);
           const userSnap = await getDoc(userRef);
